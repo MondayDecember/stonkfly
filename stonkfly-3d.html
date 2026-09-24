@@ -20,6 +20,14 @@ canvas{display:block}
 #stats .row{display:flex;justify-content:space-between;font-size:.9rem;margin-top:.25rem;color:#9fb3e8}
 #stats .row b{color:#e8eeff;font-weight:normal}
 #hud{left:1.3rem;bottom:1.3rem;width:25rem}
+#season{left:1.3rem;top:3.2rem;width:25rem}
+#season .h{display:flex;justify-content:space-between;font-size:.8rem;color:#9fb3e8;border-left:.2rem solid #ffd06a;padding-left:.4rem;margin-bottom:.35rem}
+#seasonC{width:100%;height:7rem;display:block}
+#season .g{display:grid;grid-template-columns:1fr 1fr;gap:.1rem 1rem;font-size:.78rem;margin-top:.35rem;color:#9fb3e8}
+#season .g div{display:flex;justify-content:space-between}#season .g b{font-weight:normal;color:#e8eeff;font-variant-numeric:tabular-nums}
+#season .lg{font-size:.68rem;color:#8595c0;margin-top:.25rem}#season .lg i{display:inline-block;width:.9rem;height:.18rem;vertical-align:middle;margin:0 .3rem 0 .6rem}
+#season .past{font-size:.68rem;color:#8595c0;margin-top:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#brainCap{position:fixed;font-size:.72rem;color:#8fe8ff;text-shadow:0 0 .4rem #3ff0ff;pointer-events:none;white-space:nowrap;transform:translate(-50%,0)}
 #hud .h{display:flex;justify-content:space-between;font-size:.8rem;color:#9fb3e8;border-left:.2rem solid #5cf;padding-left:.4rem}
 #hud .row{display:flex;gap:.7rem;align-items:flex-end}
 #hud .big{font-size:2rem;margin-top:.3rem}
@@ -48,31 +56,45 @@ canvas{display:block}
 <div id="stats" class="panel">
   <div class="s HOLD" id="side">—</div>
   <div class="row"><span>баланс</span><b id="eq">—</b></div>
-  <div class="row"><span>P&amp;L</span><b id="pnl">—</b></div>
+  <div class="row"><span>прибыль</span><b id="pnl">—</b></div>
   <div class="row"><span>сделок</span><b id="trades">—</b></div>
   <div class="row"><span>синапсов изменено</span><b id="syn">—</b></div>
-  <div class="row"><span>DNp20 L / R</span><b id="lr">—</b></div>
+  <div class="row"><span>DNp20 лев / прав</span><b id="lr">—</b></div>
 </div>
+<div id="season" class="panel">
+  <div class="h"><span id="seasonT">СЕЗОН 1</span><span id="seasonD">—</span></div>
+  <canvas id="seasonC" width="600" height="168"></canvas>
+  <div class="lg"><i style="background:#ffd06a"></i>муха<i style="background:#5ad1ff"></i>купить и держать<i style="background:#56618a"></i>ничего не делать</div>
+  <div class="g">
+    <div><span>муха</span><b id="sFly">—</b></div><div><span>купить и держать</span><b id="sHodl">—</b></div>
+    <div><span>лучший баланс</span><b id="sMax">—</b></div><div><span>макс. просадка</span><b id="sDD">—</b></div>
+    <div><span>сделок / вето</span><b id="sTr">—</b></div><div><span>награда / наказание</span><b id="sRA">—</b></div>
+  </div>
+  <div class="past" id="sPast"></div>
+</div>
+<div id="brainCap"></div>
 <div id="hud" class="panel">
-  <div class="h"><span>NEURAL REPLAY</span><span id="clock">0.00 S</span></div>
+  <div class="h"><span>АКТИВНОСТЬ МОЗГА</span><span id="clock">0.00 с</span></div>
   <div class="row">
-    <div><div class="big" id="rate">—</div><div class="lbl">SPIKES / S</div></div>
+    <div><div class="big" id="rate">—</div><div class="lbl">СПАЙКОВ В СЕКУНДУ</div></div>
     <canvas id="raster" width="224" height="96"></canvas>
   </div>
   <div class="lbl">166 700 НЕЙРОНОВ · 25.6 МЛН СИНАПСОВ · MaleCNS v1.0</div>
 </div>
 <div id="ticker" class="panel"><div class="h">ПОСЛЕДНИЕ РЕШЕНИЯ</div><div id="tick"></div></div>
 <div id="toast"></div>
+<div id="fps" style="position:fixed;right:1.5rem;top:12rem;font-size:.8rem;color:#3dff9a;background:rgba(0,0,0,.6);padding:.2rem .5rem;display:none"></div>
 <button id="snd" style="position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);font:inherit;font-size:1rem;color:#dfe8ff;background:rgba(5,10,25,.9);border:1px solid #5cf;padding:.5rem 1rem;cursor:pointer;display:none">🔊 включить звук</button>
 <div id="over"><span id="overT">GAME OVER</span><small id="overS"></small></div>
 <div id="disc">коннектом мухи дрозофилы торгует BTC на виртуальные $100 · реальные цены Coinbase · эксперимент, не финансовый совет</div>
-<div id="help">ЛКМ: вращать · ПКМ: сдвигать · колесо: зум · C: ссылка с этой камерой · R: сброс · M: звук</div>
+<div id="help">ЛКМ: вращать · ПКМ: сдвигать · колесо: зум · C: ссылка с этой камерой · R: сброс · M: звук · B: мозг · S: сезон · F: FPS</div>
 <div id="camMsg" style="position:fixed;left:50%;top:3rem;transform:translateX(-50%);font-size:.9rem;background:rgba(5,10,25,.9);border:1px solid #2a3d6b;padding:.4rem .8rem;display:none"></div>
 
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
 const qs=new URLSearchParams(location.search);
 const RUN=qs.get('run')||'paper', BASE=`runs/${RUN}/`, STREAM=qs.has('stream');
@@ -80,10 +102,23 @@ let DEMO=qs.has('demo');
 const $=id=>document.getElementById(id);
 if(STREAM){setTimeout(()=>$('help').style.display='none',8000);}
 const AUTO=qs.has('auto')||qs.has('shot');
+const fpsEl=document.getElementById('fps');if(qs.has('debug'))fpsEl.style.display='block';
+addEventListener('keydown',e=>{if(e.code==='KeyF')fpsEl.style.display=fpsEl.style.display==='block'?'none':'block';});
+const VIEW={brain:true,season:true};
+try{Object.assign(VIEW,JSON.parse(localStorage.getItem('stonkfly-view')||'{}'));}catch{}
+if(qs.get('view')==='clean'){VIEW.brain=false;VIEW.season=false;}
+if(qs.get('view')==='full'){VIEW.brain=true;VIEW.season=true;}
+if(qs.has('brain'))VIEW.brain=qs.get('brain')!=='0';
+if(qs.has('season'))VIEW.season=qs.get('season')!=='0';
+function applyView(save){$('season').style.display=VIEW.season?'':'none';
+  if(typeof holo!=='undefined'){holo.visible=proj.visible=VIEW.brain;$('brainCap').style.display=VIEW.brain?'':'none';labels.forEach(l=>l.el.style.visibility=VIEW.brain?'':'hidden');}
+  if(save&&!qs.has('view'))try{localStorage.setItem('stonkfly-view',JSON.stringify(VIEW));}catch{}}
+addEventListener('keydown',e=>{if(e.code==='KeyB'){VIEW.brain=!VIEW.brain;applyView(true);}if(e.code==='KeyS'){VIEW.season=!VIEW.season;applyView(true);}});
 
 // ================= scene =================
-const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const FPS=+(qs.get('fps')||(STREAM?30:60));
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(+(qs.get('dpr')||Math.min(devicePixelRatio,STREAM?1:1.5)));
 renderer.setSize(innerWidth,innerHeight);
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.15;
@@ -115,7 +150,7 @@ addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updat
 
 scene.add(new THREE.HemisphereLight(0x8a90c0,0x1a1420,.55));
 const key=new THREE.DirectionalLight(0xc8d0ff,.8); key.position.set(-3,5.2,4); key.castShadow=true;
-key.shadow.mapSize.set(2048,2048); Object.assign(key.shadow.camera,{left:-9,right:9,top:9,bottom:-9}); scene.add(key);
+key.shadow.mapSize.set(1024,1024);renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true; Object.assign(key.shadow.camera,{left:-9,right:9,top:9,bottom:-9}); scene.add(key);
 const screenLight=new THREE.PointLight(0x4c8dff,7,9,1.6); screenLight.position.set(2.2,2,-1.2); scene.add(screenLight);
 const pink=new THREE.PointLight(0xff3fa0,4,10,1.8); pink.position.set(-4,1.2,-3); scene.add(pink);
 const rim=new THREE.PointLight(0x40f0ff,3,8,1.8); rim.position.set(-2.5,2.5,2.5); scene.add(rim);
@@ -130,6 +165,13 @@ function canvasTex(w,h,draw,rep=[1,1]){const c=document.createElement('canvas');
 const std=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.85,...o});
 function plane(w,h,mat,pos,rot){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);m.position.set(...pos);m.rotation.set(...rot);m.receiveShadow=true;scene.add(m);return m;}
 function box(w,h,d,mat,pos,parent=scene){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(...pos);m.castShadow=m.receiveShadow=true;parent.add(m);return m;}
+// merge many small static meshes of one parent into a single draw call (vertex colours)
+function bake(parent,meshes,opts={}){
+  const geos=meshes.map(m=>{m.updateMatrix();const g=m.geometry.clone().applyMatrix4(m.matrix);g.deleteAttribute('uv');
+    const c=m.material.color,n=g.attributes.position.count,col=new Float32Array(n*3);for(let k=0;k<n;k++)col.set([c.r,c.g,c.b],k*3);
+    g.setAttribute('color',new THREE.BufferAttribute(col,3));parent.remove(m);return g;});
+  const mesh=new THREE.Mesh(mergeGeometries(geos),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.8,...opts}));
+  mesh.castShadow=mesh.receiveShadow=true;parent.add(mesh);return mesh;}
 // floor: wooden planks
 const woodTex=canvasTex(512,512,(g,w,h)=>{for(let x=0;x<w;x+=64)for(let y=-((x/64)%3)*90;y<h;y+=270){const l=38+Math.random()*14;g.fillStyle=`hsl(25,35%,${l*.45}%)`;g.fillRect(x,y,64,270);
   g.strokeStyle='rgba(0,0,0,.25)';for(let k=0;k<6;k++){g.beginPath();g.moveTo(x+8+Math.random()*48,y);g.lineTo(x+8+Math.random()*48,y+270);g.stroke();}
@@ -184,13 +226,17 @@ const lampFill=new THREE.PointLight(0xffb070,1.5,4,1.8);lampFill.position.y=-SH;
 // bookshelf on left wall
 const shelf=new THREE.Group();shelf.position.set(RX0+.35,RY0,-.5);scene.add(shelf);const sw=std(0x3b2a20);
 box(.6,4.2,.08,sw,[0,2.1,-1.5],shelf);box(.6,4.2,.08,sw,[0,2.1,1.5],shelf);box(.1,4.2,3,sw,[-.28,2.1,0],shelf);
+const books=[];
 for(let k=0;k<5;k++){box(.6,.07,3,sw,[0,.05+k*1.02,0],shelf);let z=-1.4;
-  while(k<4&&z<1.3){const w=.1+Math.random()*.12,h=.55+Math.random()*.35;const b=box(.45,h,w,std(new THREE.Color().setHSL(Math.random(),.45,.35)),[0,.08+k*1.02+h/2,z+w/2],shelf);if(Math.random()<.1)b.rotation.x=.25;z+=w+.02;}}
+  while(k<4&&z<1.3){const w=.1+Math.random()*.12,h=.55+Math.random()*.35;const b=box(.45,h,w,std(new THREE.Color().setHSL(Math.random(),.45,.35)),[0,.08+k*1.02+h/2,z+w/2],shelf);if(Math.random()<.1)b.rotation.x=.25;books.push(b);z+=w+.02;}}
+bake(shelf,books);
 // plant in the corner
 const plant=new THREE.Group();plant.position.set(-6.4,RY0,-2.4);scene.add(plant);
 const pot=new THREE.Mesh(new THREE.CylinderGeometry(.45,.35,.9,12),std(0xb35a3a));pot.position.y=.45;pot.castShadow=true;plant.add(pot);
+const leaves=[];
 for(let i=0;i<14;i++){const lf=new THREE.Mesh(new THREE.SphereGeometry(.35,6,4),flat(new THREE.Color().setHSL(.3+Math.random()*.06,.5,.22+Math.random()*.1)));
-  lf.scale.set(.35,1.4,.12);const a=i/14*Math.PI*2;lf.position.set(Math.cos(a)*.3,1.3+Math.random()*.6,Math.sin(a)*.3);lf.rotation.set(Math.sin(a)*.6,a,Math.cos(a)*.6);lf.castShadow=true;plant.add(lf);}
+  lf.scale.set(.35,1.4,.12);const a=i/14*Math.PI*2;lf.position.set(Math.cos(a)*.3,1.3+Math.random()*.6,Math.sin(a)*.3);lf.rotation.set(Math.sin(a)*.6,a,Math.cos(a)*.6);lf.castShadow=true;plant.add(lf);leaves.push(lf);}
+bake(plant,leaves,{flatShading:true});
 // office chair (empty, pushed back)
 const chair=new THREE.Group();chair.position.set(-.1,RY0,2.9);chair.rotation.y=.5;scene.add(chair);const cm=std(0x1c1f2e,{roughness:.6});
 box(1.3,.18,1.3,cm,[0,1.2,0],chair);const back=box(1.3,1.6,.16,cm,[0,2.1,.62],chair);back.rotation.x=-.12;
@@ -207,7 +253,7 @@ rbox(1.8,.8,4.2,sm,[0,.45,0],sofa);rbox(.45,1.5,4.2,sm,[.75,1.1,0],sofa);rbox(1.
 // poster on right wall
 const posterTex=canvasTex(256,340,(g,w,h)=>{g.fillStyle='#0b0f24';g.fillRect(0,0,w,h);g.strokeStyle='#ffd06a';g.lineWidth=4;g.strokeRect(8,8,w-16,h-16);
   let y=230;for(let i=0;i<14;i++){const d=(Math.random()-.35)*30;g.fillStyle=d<0?'#26d98a':'#ff4d6d';g.fillRect(24+i*15,Math.min(y,y+d)-40,10,Math.abs(d)+6);y+=d*-.6;}
-  g.fillStyle='#ffd06a';g.font='bold 30px monospace';g.textAlign='center';g.fillText('BUY HIGH',w/2,285);g.fillText('SELL LOW',w/2,318);});
+  g.fillStyle='#ffd06a';g.font='bold 25px monospace';g.textAlign='center';g.fillText('КУПИ ДОРОГО',w/2,285);g.fillText('ПРОДАЙ ДЁШЕВО',w/2,316);});
 plane(2.2,2.9,std(0xffffff,{map:posterTex,roughness:.5}),[RX1-.02,2.4,1.2],[0,-Math.PI/2,0]);
 // door on left wall
 const door=box(.08,3.8,1.9,std(0x2e2a3a),[RX0+.05,RY0+1.9,7.5]);
@@ -217,9 +263,11 @@ function windowTex(){const c=document.createElement('canvas');c.width=64;c.heigh
   g.fillStyle='#0a0e22';g.fillRect(0,0,64,128);
   for(let y=4;y<124;y+=8)for(let x=4;x<60;x+=8)if(Math.random()<.35){g.fillStyle=['#ff4f9a','#5ad1ff','#ffd06a','#8f7bff'][Math.random()*4|0];g.globalAlpha=.25+Math.random()*.5;g.fillRect(x,y,4,4);}
   const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;return t;}
+// 45 buildings, 4 shared window textures = 4 draw calls
+const cityGeos=[[],[],[],[]];
 for(let i=0;i<45;i++){const w=2.5+Math.random()*3.5,h=8+Math.random()*26,d=2+Math.random()*2;
-  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({map:windowTex()}));
-  m.position.set(-40+Math.random()*80,h/2-9,-22-Math.random()*30);scene.add(m);}
+  cityGeos[i%4].push(new THREE.BoxGeometry(w,h,d).translate(-40+Math.random()*80,h/2-9,-22-Math.random()*30));}
+cityGeos.forEach(gs=>scene.add(new THREE.Mesh(mergeGeometries(gs),new THREE.MeshBasicMaterial({map:windowTex()}))));
 const RAIN=700,rp=new Float32Array(RAIN*6);
 for(let i=0;i<RAIN;i++){const x=(Math.random()-.5)*30,y=Math.random()*20,z=-4.5-Math.random()*10;rp.set([x,y,z,x-.05,y-.5,z],i*6);}
 const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rp,3));
@@ -245,7 +293,13 @@ const screen=new THREE.Mesh(new THREE.PlaneGeometry(3.34,1.96),new THREE.MeshBas
 // keyboard, mug, speaker
 const kb=new THREE.Group();kb.position.set(1.25,.13,.05);kb.rotation.y=-.25;scene.add(kb);
 kb.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(1.8,.08,.6),flat(0x151a33)),{receiveShadow:true}));
-const keys=[];for(let r=0;r<4;r++)for(let c=0;c<12;c++){const k=new THREE.Mesh(new THREE.BoxGeometry(.11,.05,.1),flat(0x252c52));k.position.set(-.75+c*.137,.06,-.2+r*.135);kb.add(k);keys.push(k);}
+// 48 keys = 1 instanced draw call
+const keyIM=new THREE.InstancedMesh(new THREE.BoxGeometry(.11,.05,.1),flat(0xffffff),48);kb.add(keyIM);
+const KEYC=new THREE.Color(0x252c52),keys=[];
+for(let r=0;r<4;r++)for(let c=0;c<12;c++){const o=new THREE.Object3D();o.position.set(-.75+c*.137,.06,-.2+r*.135);kb.add(o);o.updateMatrix();
+  keyIM.setMatrixAt(keys.length,o.matrix);keyIM.setColorAt(keys.length,KEYC);keys.push(o);}
+function setKey(i,y,col){const o=keys[i];o.position.y=y;o.updateMatrix();keyIM.setMatrixAt(i,o.matrix);keyIM.setColorAt(i,col);keyIM.instanceMatrix.needsUpdate=true;keyIM.instanceColor.needsUpdate=true;}
+function pressKey(i,hex){setKey(i,.03,new THREE.Color(hex));setTimeout(()=>setKey(i,.06,KEYC),500);}
 // mouse + mousepad to the right of the keyboard
 const mpad=new THREE.Group();mpad.position.set(2.85,.095,.25);mpad.rotation.y=-.25;scene.add(mpad);
 const padM=new THREE.Mesh(new RoundedBoxGeometry(1.3,.02,1.0,2,.01),flat(0x10142a,{roughness:.9}));padM.receiveShadow=true;mpad.add(padM);
@@ -274,10 +328,12 @@ const thorax=shade(new THREE.Mesh(new THREE.IcosahedronGeometry(.45,2),tanD));th
 const scut=shade(new THREE.Mesh(new THREE.IcosahedronGeometry(.2,1),tanD));scut.position.set(-.38,.28,0);scut.scale.set(1.2,.6,1.3);body.add(scut);
 // bristles (macrochaetae)
 const brGeo=new THREE.ConeGeometry(.012,.28,4);brGeo.translate(0,.14,0);
+const bristles=[];
 for(let i=0;i<22;i++){const u=Math.random()*Math.PI*.9-.45,v=Math.random()*Math.PI*.6+.2;
   const n=new THREE.Vector3(Math.cos(u)*Math.sin(v)*1.1,Math.cos(v)*.95,Math.sin(u)*Math.sin(v)*(Math.random()<.5?-1:1)).normalize();
   const b=new THREE.Mesh(brGeo,chitin);b.position.copy(n.clone().multiply(new THREE.Vector3(.5,.42,.43)));
-  b.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),n.clone().add(new THREE.Vector3(-.9,.3,0)).normalize());body.add(b);}
+  b.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),n.clone().add(new THREE.Vector3(-.9,.3,0)).normalize());body.add(b);bristles.push(b);}
+bake(body,bristles,{flatShading:true,roughness:.5});
 // abdomen: striped segments
 const abd=new THREE.Group();abd.position.set(-.5,-.02,0);abd.rotation.z=.08;body.add(abd);
 [[.40,0],[.45,-.26],[.45,-.53],[.41,-.80],[.34,-1.04],[.23,-1.24]].forEach(([r,x],i)=>{
@@ -338,9 +394,74 @@ function solveLeg(l){
   const T=Fend.clone().add(new THREE.Vector3().subVectors(Fend,H).setY(0).normalize().multiplyScalar(.16));T.y=Math.max(DESK_Y+.01,Fend.y-.03);
   place(l.fem,H,K);place(l.tib,K,Fend);place(l.tar,Fend,T);}
 
+// ================= brain hologram: real soma positions, real per-tick spikes =================
+const holo=new THREE.Group();holo.position.set(-1.0,2.45,-1.7);scene.add(holo);
+const proj=new THREE.Group();proj.position.set(-1.0,.09,-1.7);scene.add(proj);
+{const pb=new THREE.Mesh(new THREE.CylinderGeometry(.34,.4,.12,32),std(0x1a1e30,{metalness:.7,roughness:.35}));pb.castShadow=true;pb.position.y=.06;proj.add(pb);}
+const lens=new THREE.Mesh(new THREE.CircleGeometry(.24,32),glow(0x3ff0ff));lens.rotation.x=-Math.PI/2;lens.position.y=.125;proj.add(lens);
+const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.2,.24,1.5,32,1,true),new THREE.MeshBasicMaterial({color:0x3ff0ff,transparent:true,opacity:.05,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));beam.position.y=.85;proj.add(beam);
+const holoMat=new THREE.ShaderMaterial({
+  uniforms:{uT:{value:0},uFade:{value:.3},uScale:{value:innerHeight*.5},uSize:{value:.011}},
+  vertexShader:`attribute float act;attribute vec3 base;attribute float flag;uniform float uT,uFade,uScale,uSize;varying vec3 vC;varying float vA;
+    void main(){vec4 mv=modelViewMatrix*vec4(position,1.);
+      float tw=.75+.25*sin(uT*9.+position.x*61.+position.z*37.);
+      float a=clamp(act*uFade*tw,0.,1.);
+      float special=step(1.5,flag);
+      vec3 hot=mix(vec3(1.,.8,.45),vec3(1.),a);
+      vC=mix(base,hot,a);vA=.11+a*.9+special*.6;
+      gl_PointSize=uSize*(1.+a*2.2+special*2.5)*uScale/-mv.z;gl_Position=projectionMatrix*mv;}`,
+  fragmentShader:`varying vec3 vC;varying float vA;void main(){vec2 d=gl_PointCoord-.5;float r=dot(d,d);if(r>.25)discard;gl_FragColor=vec4(vC,vA*(1.-r*4.));}`,
+  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+let holoPts=null,actArr=null,brainMeta=null,brainAct=null,brainFade=0,labels=[];
+const GROUP_COL={2:[1,.8,.3],4:[.8,.45,1],8:[.3,1,.7],16:[.3,1,.7]};
+function buildHolo(pos,cls,flag){
+  const n=pos.length/3,geo=new THREE.BufferGeometry(),base=new Float32Array(n*3);actArr=new Float32Array(n);
+  for(let i=0;i<n;i++){const f=flag[i];let c;
+    if(f&2)c=GROUP_COL[2];else if(f&4)c=GROUP_COL[4];else if(f&24)c=GROUP_COL[8];
+    else if(f&1)c=[.55,.35,.9];else{const h=(.52+cls[i]*.045)%1,col=new THREE.Color().setHSL(h,.7,.45);c=[col.r,col.g,col.b];}
+    base.set([c[0]*.9,c[1]*.9,c[2]*.9],i*3);}
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('base',new THREE.BufferAttribute(base,3));
+  geo.setAttribute('flag',new THREE.BufferAttribute(new Float32Array(flag),1));geo.setAttribute('act',new THREE.BufferAttribute(actArr,1));
+  if(holoPts)holo.remove(holoPts);holoPts=new THREE.Points(geo,holoMat);holoPts.scale.setScalar(1.25);holoPts.frustumCulled=false;holo.add(holoPts);
+  // labelled groups: centroid of each special population
+  labels.forEach(l=>l.el.remove());labels=[[8|16,'DNp20 · решение'],[2,'PAM11 · награда'],[4,'PPL101 · наказание']].map(([bits,text])=>{
+    const c=new THREE.Vector3();let k=0;for(let i=0;i<n;i++)if(flag[i]&bits){c.x+=pos[i*3];c.y+=pos[i*3+1];c.z+=pos[i*3+2];k++;}
+    if(!k)return null;c.divideScalar(k).multiplyScalar(1.25);
+    const el=document.createElement('div');el.className='hl';el.textContent=text;
+    Object.assign(el.style,{position:'fixed',fontSize:'.62rem',color:'#dff',textShadow:'0 0 .3rem #3ff0ff',pointerEvents:'none',whiteSpace:'nowrap',transform:'translate(-50%,-140%)'});
+    document.body.appendChild(el);return{c,el};}).filter(Boolean);
+  applyView(false);
+}
+function demoBrain(){ // синтетический «мозг» для демо-режима (нет файлов runs/brain)
+  const n=30000,pos=new Float32Array(n*3),cls=new Uint8Array(n),flag=new Uint8Array(n);
+  for(let i=0;i<n;i++){let x,y,z,r=Math.random(),u=()=>Math.random()*2-1;
+    if(r<.45){const sd=Math.random()<.5?-1:1;x=sd*(.62+u()*.18);y=.45+u()*.22;z=u()*.18;cls[i]=1;}
+    else if(r<.8){x=u()*.4;y=.5+u()*.2;z=u()*.25;cls[i]=0;}
+    else{x=u()*.14;y=-.1-Math.random()*.9;z=u()*.1;cls[i]=3;}
+    pos.set([x,y,z],i*3);}
+  for(let i=0;i<600;i++){flag[i]=1;pos.set([(Math.random()-.5)*.3,.6+Math.random()*.1,(Math.random()-.5)*.2],i*3);}
+  for(let i=600;i<615;i++)flag[i]=2;flag[615]=flag[616]=4;flag[617]=flag[618]=8;flag[619]=16;
+  buildHolo(pos,cls,flag);brainMeta={positioned:n,demo:true};}
+let brainLoading=false;
+async function brainPoll(){
+  if(!brainMeta&&!brainLoading){brainLoading=true;
+    try{if(DEMO)throw 0;const [m,pb,cb,fb]=await Promise.all([getJSON('runs/brain/meta.json'),...['pos','cls','flag'].map(f=>fetch(`runs/brain/${f}.bin`).then(r=>{if(!r.ok)throw 0;return r.arrayBuffer();}))]);
+      buildHolo(new Float32Array(pb),new Uint8Array(cb),new Uint8Array(fb));brainMeta=m;}
+    catch{demoBrain();}}
+  if(!holoPts)return;
+  if(brainMeta.demo){for(let i=0;i<actArr.length;i++)actArr[i]=Math.random()<.08?Math.random():0;holoPts.geometry.attributes.act.needsUpdate=true;brainFade=1;return;}
+  try{const a=await getJSON('runs/brain/act.json');if(brainAct&&a.mtime===brainAct.mtime)return;
+    const buf=new Uint8Array(await (await fetch('runs/brain/act.bin?t='+Date.now(),{cache:'no-store'})).arrayBuffer());
+    if(buf.length!==actArr.length)return;for(let i=0;i<buf.length;i++)actArr[i]=buf[i]/255;
+    holoPts.geometry.attributes.act.needsUpdate=true;brainAct=a;brainFade=1;}catch{}
+}
+
+applyView(false);
 // ================= monitor / raster =================
 const rC=$('raster'),rG=rC.getContext('2d');
-function drawRaster(rt){const img=rG.getImageData(1,0,rC.width-1,rC.height);rG.putImageData(img,0,0);
+let rasterT=0;
+function drawRaster(rt){const now=performance.now();if(now-rasterT<33)return;rasterT=now;
+  rG.globalCompositeOperation='copy';rG.drawImage(rC,-1,0);rG.globalCompositeOperation='source-over';
   rG.fillStyle='#020510';rG.fillRect(rC.width-1,0,1,rC.height);
   const gr=[['#6ab8ff',rt.l],['#6ab8ff',rt.r],['#ffffff',rt.gate],['#8898c0',rt.kc],['#ffcc55',rt.rew],['#c86bff',rt.ave]];
   for(let y=0;y<96;y++){const [c,p]=gr[Math.floor(y/16)];if(Math.random()<p){rG.fillStyle=c;rG.fillRect(rC.width-1,y,1,1);}}}
@@ -363,14 +484,14 @@ function drawScreen(flash){
     const es=vis.map(r=>+r.equity_usdc);let el=Math.min(...es),eh=Math.max(...es);if(eh-el<.05){el-=.03;eh+=.03}
     vis.forEach((r,i)=>{const k=r.neural.stimulus;if(k==='none')return;g.fillStyle=k==='reward'?'rgba(255,208,106,.25)':'rgba(200,107,255,.25)';g.fillRect(X(i)-bw/2,440,bw,120);});
     g.strokeStyle='#ffd06a';g.lineWidth=2;g.beginPath();es.forEach((e,i)=>{const y=440+120*(1-(e-el)/(eh-el));i?g.lineTo(X(i),y):g.moveTo(X(i),y)});g.stroke();
-    g.fillStyle='#9fb3e8';g.font='18px monospace';g.fillText('equity '+(+last.equity_usdc).toFixed(2)+' USDC',cx,590);}
+    g.fillStyle='#9fb3e8';g.font='18px monospace';g.fillText('баланс '+(+last.equity_usdc).toFixed(2)+' USDC',cx,590);}
   g.fillStyle='#0e1530';g.fillRect(720,70,290,380);
   if(last){const b=+last.quote.bid,a=+last.quote.ask;g.font='16px monospace';
     for(let i=0;i<8;i++){g.fillStyle='#ff4d6d';g.fillText((a+(8-i)*2.5).toFixed(2),735,100+i*22);g.fillStyle='#3b4670';g.fillRect(880,88+i*22,40+((i*37)%80),14);}
     g.fillStyle='#e8eeff';g.font='bold 20px monospace';g.fillText(mid(last).toFixed(2),735,290);g.font='16px monospace';
     for(let i=0;i<7;i++){g.fillStyle='#26d98a';g.fillText((b-i*2.5).toFixed(2),735,318+i*20);g.fillStyle='#3b4670';g.fillRect(880,306+i*20,40+((i*53)%80),14);}}
   const s=last?last.neural.side:'HOLD',col={BUY:'#1fcf7a',SELL:'#ff4d6d',HOLD:'#3553b8'}[s];
-  g.fillStyle=flash?'#ffffff':col;g.fillRect(720,470,290,90);g.fillStyle=flash?col:'#ffffff';g.font='bold 40px monospace';g.textAlign='center';g.fillText(s,865,528);g.textAlign='left';
+  g.fillStyle=flash?'#ffffff':col;g.fillRect(720,470,290,90);g.fillStyle=flash?col:'#ffffff';g.font='bold 40px monospace';g.textAlign='center';g.font='bold 34px monospace';g.fillText(RU.side[s],865,526);g.textAlign='left';
   scrT.needsUpdate=true;}
 
 // ================= HUD =================
@@ -380,15 +501,15 @@ let toastT;
 function toast(html,cls){const t=$('toast');t.className=cls||'';t.innerHTML=html;void t.offsetWidth;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),3200);}
 function hud(){
   const r=rows.at(-1);if(!r)return;const n=r.neural;
-  $('side').textContent=n.side;$('side').className='s '+n.side;
+  $('side').textContent=RU.side[n.side];$('side').className='s '+n.side;
   const e0=+rows[0].equity_usdc,e=+r.equity_usdc,d=e-e0;
   $('eq').textContent=fmt(e)+' USDC';$('pnl').textContent=(d>=0?'+':'')+fmt(d)+` (${(d/e0*100).toFixed(2)}%)`;$('pnl').className=d>=0?'up':'dn';
   const f=rows.filter(x=>x.execution.status==='FILLED');
   $('trades').innerHTML=`<span class="up">${f.filter(x=>x.neural.side==='BUY').length}</span> / <span class="dn">${f.filter(x=>x.neural.side==='SELL').length}</span>`;
   $('syn').textContent=fmt(rows.reduce((a,x)=>a+(x.neural.memory?.changed_edges||0),0),0);
   $('lr').textContent=`${(+n.left_hz).toFixed(1)} / ${(+n.right_hz).toFixed(1)} Гц`;
-  $('rate').textContent=(n.total_spikes/0.5/1000).toFixed(1)+'K';
-  $('tick').innerHTML='<div class="t hd"><span>тик · время</span><span>решение</span><span>исполнение</span><span>стимул</span></div>'+rows.slice(-7).reverse().map(x=>`<div class="t"><span>#${x.tick} ${new Date(x.wall_time*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><span class="${x.neural.side}">${x.neural.side}</span><span>${x.execution.status}</span><span class="${x.neural.stimulus}">${x.neural.stimulus==='none'?'·':x.neural.stimulus}</span></div>`).join('');
+  $('rate').textContent=(n.total_spikes/0.5/1000).toFixed(1)+' тыс';
+  $('tick').innerHTML='<div class="t hd"><span>тик · время</span><span>решение</span><span>исполнение</span><span>стимул</span></div>'+rows.slice(-7).reverse().map(x=>`<div class="t"><span>#${x.tick} ${new Date(x.wall_time*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><span class="${x.neural.side}">${RU.side[x.neural.side]}</span><span>${RU.exec[x.execution.status]||x.execution.status}</span><span class="${x.neural.stimulus}">${RU.stim[x.neural.stimulus]}</span></div>`).join('');
 }
 // ================= sound (синтез WebAudio, без файлов) =================
 const SND={on:qs.get('sound')!=='0',vol:+(qs.get('vol')||.6),amb:qs.get('ambient')==='1'};
@@ -430,13 +551,23 @@ const SFX={
   gameover(t){[392,370,349,294].forEach((f,i)=>tone(f,t+i*.45,i<3?.45:1.6,{type:'triangle',g:.2,to:i<3?null:280}));}};
 function play(name,delay=0){if(!AC||AC.state!=='running'||!SFX[name])return;SFX[name](AC.currentTime+delay);}
 
+const RU={
+  side:{BUY:'КУПИТЬ',SELL:'ПРОДАТЬ',HOLD:'ДЕРЖАТЬ'},
+  exec:{FILLED:'ИСПОЛНЕНО',VETO:'ЗАПРЕТ',HOLD:'—',REJECTED:'ОТКЛОНЕНО',SETTLED:'ИСПОЛНЕНО'},
+  stim:{reward:'награда',aversive:'наказание',none:'·'},
+  reason:{'Order cooldown':'пауза между сделками','Insufficient funds/position or below exchange minimum':'не хватает денег или BTC для минимального ордера',
+    'Daily order limit':'дневной лимит сделок','Spread limit':'слишком большой спред','Stale or future quote':'устаревшая котировка',
+    'Price moved beyond neural observation tolerance':'цена ушла, пока муха думала','Loss stop reached':'стоп по просадке',
+    'Quote expired before submission':'котировка устарела','Quote expired during preview':'котировка устарела','Incomplete market snapshot':'нет данных с биржи',
+    'Fee ceiling exceeded':'слишком большая комиссия','STOP file present':'остановлено вручную','Execution stopped':'торговля остановлена'}};
+const ruReason=r=>RU.reason[r]||r;
 function announce(r){
   {const n=r.neural,ex=r.execution;
    if(n.stimulus==='reward')play('reward');if(n.stimulus==='aversive')play('aversive');
    if(n.side!=='HOLD')play(ex.status==='FILLED'?(n.side==='BUY'?'buy':'sell'):'veto',1.85);}
   const n=r.neural,ex=r.execution;
   if(n.side!=='HOLD'&&ex.status==='FILLED') toast(`${n.side==='BUY'?'КУПИЛА':'ПРОДАЛА'}<small>${ex.base?(+ex.base).toFixed(6)+' BTC · $'+(+ex.quote).toFixed(2):''} по ${fmt(mid(r))}</small>`,n.side);
-  else if(n.side!=='HOLD') toast(`${n.side}?<small>защита не пустила: ${ex.reason||ex.status}</small>`,'HOLD');
+  else if(n.side!=='HOLD') toast(`${RU.side[n.side]}?<small>защита не пустила: ${ruReason(ex.reason||ex.status)}</small>`,'HOLD');
   else if(n.stimulus==='reward') toast('ДОФАМИН<small>портфель в плюсе → PAM-нейроны</small>','reward');
   else if(n.stimulus==='aversive') toast('НАКАЗАНИЕ<small>портфель в минусе → PPL101-нейроны</small>','aversive');
 }
@@ -449,21 +580,62 @@ function fakeRow(i,prev){const p=prev?mid(prev)+(Math.random()-.5)*60:64000,s=['
       reward_spikes:k==='reward'?40+Math.random()*60|0:Math.random()*4|0,aversive_spikes:k==='aversive'?10+Math.random()*20|0:0,total_spikes:300000+Math.random()*200000|0,stimulus:k,memory:{changed_edges:Math.random()*3000|0}},
     execution:st==='FILLED'?{status:st,base:(10/p).toFixed(8),quote:'9.90'}:{status:st,...(st==='VETO'?{reason:'Order cooldown'}:{})}};}
 async function getJSON(u){const r=await fetch(u+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;return r.json();}
+let lastTick=null;
+function pushRow(r,{quiet=false}={}){rows.push(r);lastTick=r.tick;startReplay(r);if(!quiet&&!first)announce(r);}
+async function loadAll(){
+  const res=await fetch(BASE+'events.jsonl?t='+Date.now(),{cache:'no-store'});if(!res.ok)throw 0;
+  const lines=(await res.text()).trim().split('\n').filter(Boolean);
+  rows=lines.map(l=>JSON.parse(l));lastTick=rows.length?rows.at(-1).tick:null;
+  if(rows.length){startReplay(rows.at(-1));if(!first)announce(rows.at(-1));}}
 async function poll(){
   if(!DEMO){
     try{
-      const res=await fetch(BASE+'events.jsonl?t='+Date.now(),{cache:'no-store'});if(!res.ok)throw 0;
-      const lines=(await res.text()).trim().split('\n').filter(Boolean);
-      if(lines.length!==lastLen){rows=lines.map(l=>JSON.parse(l));lastLen=lines.length;if(rows.length){startReplay(rows.at(-1));if(!first)announce(rows.at(-1));}first=false;}
+      if(lastTick===null)await loadAll();
+      else{ // лёгкий опрос: один маленький файл вместо всей истории
+        let r=null;try{r=await getJSON(BASE+'latest.json');}catch{}
+        if(r&&r.tick!==lastTick){ if(r.tick===lastTick+1)pushRow(r); else await loadAll(); }
+      }
+      first=false;
       try{runState=await getJSON('runs/status.json');}catch{runState={state:'running'};try{const er=await getJSON(BASE+'error.json');runState={state:/Loss stop/.test(er.reason)?'gameover':'restarting',reason:er.reason};}catch{}}
       const age=rows.length?Math.round(Date.now()/1000-rows.at(-1).wall_time):0, up=rows.length?Date.now()/1000-rows[0].wall_time:0;
       const season=runState.season&&runState.season>1?`сезон ${runState.season} · `:'';
       $('src').textContent=`${season}торгует ${dur(up)} · ${rows.length} решений · последнее ${age} с назад`+(runState.state==='restarting'?' · перезапуск…':'');
-      overlay();return;
+      overlay();seasonPanel();brainPoll();return;
     }catch{DEMO=true;}
   }
-  const r=fakeRow(rows.length,rows.at(-1));rows.push(r);if(rows.length>200)rows.shift();startReplay(r);if(!first)announce(r);first=false;
-  $('src').textContent='ДЕМО: случайные данные (живая муха — у автора на компьютере)';
+  const r=fakeRow(rows.length,rows.at(-1));rows.push(r);if(rows.length>400)rows.shift();startReplay(r);if(!first)announce(r);first=false;
+  $('src').textContent='ДЕМО: случайные данные (живая муха у автора на компьютере)';
+  seasonPanel();brainPoll();
+}
+let pastSeasons=null;
+let seasonKey='';
+async function seasonPanel(){
+  if(!rows.length)return;
+  const key=rows.length+':'+rows.at(-1).tick+':'+(runState.season||1);if(key===seasonKey&&pastSeasons!==null)return;seasonKey=key;
+  if(pastSeasons===null){pastSeasons=[];if(!DEMO)try{pastSeasons=await getJSON('runs/seasons.json');}catch{}}
+  const e0=+rows[0].equity_usdc,m0=mid(rows[0]);
+  const fly=rows.map(r=>+r.equity_usdc),hodl=rows.map(r=>e0*mid(r)/m0);
+  let peak=fly[0],dd=0;fly.forEach(e=>{peak=Math.max(peak,e);dd=Math.max(dd,(peak-e)/peak);});
+  const pct=e=>{const d=(e-e0)/e0*100;return`<span class="${d>=0?'up':'dn'}">${d>=0?'+':''}${d.toFixed(2)}%</span>`;};
+  $('seasonT').textContent='СЕЗОН '+(runState.season||1);
+  $('seasonD').textContent=dur(rows.at(-1).wall_time-rows[0].wall_time)+' · '+rows.length+' тиков';
+  $('sFly').innerHTML=fmt(fly.at(-1))+' '+pct(fly.at(-1));$('sHodl').innerHTML=fmt(hodl.at(-1))+' '+pct(hodl.at(-1));
+  $('sMax').textContent=fmt(fly.reduce((a,b)=>a>b?a:b));$('sDD').textContent=(dd*100).toFixed(2)+'%';
+  $('sTr').textContent=rows.filter(r=>r.execution.status==='FILLED').length+' / '+rows.filter(r=>r.execution.status==='VETO').length;
+  $('sRA').innerHTML=`<span class="reward">${rows.filter(r=>r.neural.stimulus==='reward').length}</span> / <span class="aversive">${rows.filter(r=>r.neural.stimulus==='aversive').length}</span>`;
+  $('sPast').textContent=pastSeasons.length?'прошлые: '+pastSeasons.slice(-4).map(x=>`#${x.season} ${((x.final_equity-x.start_equity)/x.start_equity*100).toFixed(1)}% (HODL ${((x.hodl_equity-x.start_equity)/x.start_equity*100).toFixed(1)}%)`).join(' · '):'';
+  // chart
+  const c=$('seasonC'),g=c.getContext('2d'),W=c.width,H=c.height,P=6;g.clearRect(0,0,W,H);
+  let lo=e0,hi=e0;for(let i=0;i<fly.length;i++){lo=Math.min(lo,fly[i],hodl[i]);hi=Math.max(hi,fly[i],hodl[i]);}const sp=Math.max(hi-lo,.2);lo-=sp*.08;hi+=sp*.08;
+  const n=rows.length,X=i=>P+(W-2*P)*(n<2?.5:i/(n-1)),Y=v=>P+(H-2*P)*(1-(v-lo)/(hi-lo));
+  g.strokeStyle='#16213f';g.lineWidth=1;for(let k=0;k<=3;k++){const y=P+(H-2*P)*k/3;g.beginPath();g.moveTo(P,y);g.lineTo(W-P,y);g.stroke();}
+  g.fillStyle='#56618a';g.font='16px monospace';g.fillText(fmt(hi),P+2,P+16);g.fillText(fmt(lo),P+2,H-P-4);
+  const line=(arr,col,w,dash)=>{g.strokeStyle=col;g.lineWidth=w;g.setLineDash(dash||[]);g.beginPath();arr.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v)));g.stroke();g.setLineDash([]);};
+  line(fly.map(()=>e0),'#56618a',2,[6,6]);line(hodl,'#5ad1ff',2,[10,6]);
+  const grad=g.createLinearGradient(0,0,0,H);grad.addColorStop(0,'rgba(255,208,106,.25)');grad.addColorStop(1,'rgba(255,208,106,0)');
+  g.fillStyle=grad;g.beginPath();fly.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v)));g.lineTo(X(n-1),H-P);g.lineTo(X(0),H-P);g.closePath();g.fill();
+  line(fly,'#ffd06a',3);
+  rows.forEach((r,i)=>{if(r.execution.status!=='FILLED')return;g.fillStyle=r.neural.side==='BUY'?'#3dff9a':'#ff5470';g.beginPath();g.arc(X(i),Y(fly[i]),3.5,0,7);g.fill();});
 }
 let wasOver=false;
 function overlay(){const o=$('over');const isOver=runState.state==='gameover';if(isOver&&!wasOver&&!first)play('gameover');wasOver=isOver;
@@ -493,18 +665,23 @@ function director(now,dt){
 const clock=new THREE.Clock();
 const CAM_MIN=new THREE.Vector3(RX0+.4,RY0+.3,RZ0+.4),CAM_MAX=new THREE.Vector3(RX1-.4,RY1-.3,RZ1-.4);let groomNext=6,groomT=-1;
 const tmp=new THREE.Vector3();
+let clockTxt='',lastFrame=0,frameN=0,uiT=0,fpsN=0,fpsT=performance.now();
 function animate(){
   requestAnimationFrame(animate);
-  const dt=Math.min(.05,clock.getDelta()),t=clock.elapsedTime,now=performance.now();
+  const now=performance.now();if(now-lastFrame<1000/FPS-2)return;lastFrame=now;frameN++;
+  const dt=Math.min(.05,clock.getDelta()),t=clock.elapsedTime;
+  if(frameN%2===0)renderer.shadowMap.needsUpdate=true;
+  const uiTick=now-uiT>100;if(uiTick)uiT=now;
+  fpsN++;if(now-fpsT>1000){if(fpsEl.style.display==='block')fpsEl.textContent=fpsN+' FPS · '+renderer.info.render.calls+' draw calls';fpsN=0;fpsT=now;}
   const pos=rainGeo.attributes.position.array;for(let i=0;i<RAIN;i++){let y=pos[i*6+1]-.25;if(y<-2)y+=20;pos[i*6+1]=y;pos[i*6+4]=y-.5;}rainGeo.attributes.position.needsUpdate=true;
   let buzz=0,tap=0,shiver=0,eyeGlow=0,trading=false;
   if(replay){const k=(now-replay.t0)/replay.dur,n=replay.r.neural;
-    if(k<1){$('clock').textContent=(k*.5).toFixed(2)+' S';drawRaster(replay.rates);
+    if(k<1){const ct=(k*.5).toFixed(2)+' с';if(ct!==clockTxt){clockTxt=ct;$('clock').textContent=ct;}drawRaster(replay.rates);
       if(n.stimulus==='reward'){buzz=Math.sin(k*Math.PI);eyeGlow=.7*Math.sin(k*Math.PI);}
       if(n.stimulus==='aversive')shiver=.05*Math.sin(k*Math.PI);
       if(n.side!=='HOLD'){trading=true;if(k>.35&&k<.85){tap=Math.sin((k-.35)/.5*Math.PI);
         if(k>.55&&!replay.pressed){replay.pressed=true;drawScreen(true);setTimeout(()=>drawScreen(false),260);
-          const kk=keys[18+(Math.random()*6|0)];kk.material=kk.material.clone();kk.material.emissive.set(n.side==='BUY'?0x1fcf7a:0xff4d6d);kk.position.y=.03;setTimeout(()=>{kk.material.emissive.set(0);kk.position.y=.06},500);}}}
+          pressKey(18+(Math.random()*6|0),n.side==='BUY'?0x3dff9a:0xff5470);}}}
     }else drawRaster({l:.01,r:.01,gate:0,kc:.01,rew:0,ave:0});}
   // wings: folded at rest, open and buzz on reward
   wings.forEach(w=>{const sd=w.userData.sd;w.rotation.set(sd*(.12+buzz*(.5+Math.sin(t*70)*.45)),sd*(WY+buzz*.7),.1+Math.sin(t*1.3)*.02);});
@@ -522,6 +699,14 @@ function animate(){
     if(i===0&&tap>0){const kk=keys[20];kk.getWorldPosition(tmp);tmp.y+=.06;l.target.lerpVectors(l.rest,tmp,tap);}
     l.cur.lerp(l.target,.25);solveLeg(l);});
   rings.forEach((r,i)=>r.scale.setScalar(1+Math.sin(t*6+i)*.04*(1+buzz*6)));
+  if(holoPts&&VIEW.brain){brainFade=Math.max(.3,brainFade-dt*.18);holoMat.uniforms.uFade.value=brainFade;holoMat.uniforms.uT.value=t;holoMat.uniforms.uScale.value=innerHeight*.5;
+    holo.rotation.y=t*.12;holo.position.y=2.45+Math.sin(t*.8)*.04;beam.material.opacity=.035+brainFade*.03;
+    if(uiTick){const cap=$('brainCap'),v=holo.position.clone().add(new THREE.Vector3(0,-1.25,0)).project(camera);
+    const vis=v.z<1&&Math.abs(v.x)<1.1&&Math.abs(v.y)<1.1;cap.style.display=vis?'block':'none';
+    if(vis){cap.style.left=((v.x+1)/2*innerWidth)+'px';cap.style.top=((1-v.y)/2*innerHeight)+'px';
+      const capTxt=brainMeta?.demo?'ДЕМО-мозг':`${(brainMeta?.positioned||0).toLocaleString('ru-RU')} нейронов · активны ${brainAct?brainAct.active.toLocaleString('ru-RU'):'…'}`;if(cap.textContent!==capTxt)cap.textContent=capTxt;}
+    labels.forEach(l=>{const w=holoPts.localToWorld(l.c.clone()).project(camera);const ok=w.z<1&&Math.abs(w.x)<1&&Math.abs(w.y)<1;l.el.style.display=ok?'block':'none';
+      if(ok){l.el.style.left=((w.x+1)/2*innerWidth)+'px';l.el.style.top=((1-w.y)/2*innerHeight)+'px';}});}}
   screenLight.intensity=6+Math.sin(t*3)*.4;
   if(AUTO)director(now,dt);else controls.update();
   camera.position.clamp(CAM_MIN,CAM_MAX);

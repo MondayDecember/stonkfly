@@ -4,6 +4,7 @@ cd "$(dirname "$0")"
 if ! tmux has-session -t stonkfly 2>/dev/null; then
   tmux new-session -d -s stonkfly -n fly ./runner.sh
   tmux new-window  -t stonkfly -n web "python3 -m http.server 8080 --bind 0.0.0.0"
+  tmux new-window  -t stonkfly -n brain ".venv/bin/python brainmap.py"
   echo "Муха запущена."
 else
   echo "Уже работает."

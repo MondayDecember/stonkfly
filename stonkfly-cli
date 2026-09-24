@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# stonkfly — одна команда для всего. Запусти без аргументов, чтобы увидеть список.
+DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+cd "$DIR" || exit 1
+IP() { hostname -I | awk '{print $1}'; }
+URL() { echo "http://$(IP):8080/stonkfly-3d.html?stream=1${1:+&view=$1}"; }
+winuser() { cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r'; }
+running() { tmux has-session -t stonkfly 2>/dev/null; }
+
+case "${1:-help}" in
+  start)
+    # убрать «ручные» копии, чтобы две мухи не писали в один прогон
+    running || { pkill -INT -f "stonkfly run" 2>/dev/null; pkill -f "http.server 8080" 2>/dev/null; sleep 2; }
+    ./start.sh >/dev/null
+    echo "Муха работает. Страница: $(URL)"
+    ;;
+  stop)     ./stop.sh ;;
+  restart)  ./stop.sh; sleep 2; "$0" start ;;
+  open)
+    "$0" start >/dev/null
+    cmd.exe /c start "" "$(URL "$2")" 2>/dev/null
+    echo "Открываю $(URL "$2")"
+    ;;
+  status)
+    running && echo "● работает" || echo "○ остановлена (запуск: stonkfly start)"
+    python3 - <<'P'
+import json, time, pathlib
+p = pathlib.Path("runs/paper/latest.json")
+if p.exists():
+    r = json.loads(p.read_text()); age = int(time.time() - r["wall_time"])
+    side = {"BUY": "КУПИТЬ", "SELL": "ПРОДАТЬ", "HOLD": "ДЕРЖАТЬ"}[r["neural"]["side"]]
+    print(f"  тик {r['tick']}, {age} с назад: {side} ({r['execution']['status']}), баланс {float(r['equity_usdc']):.2f} USDC")
+    if age > 150: print("  ВНИМАНИЕ: давно не было тиков, смотри stonkfly logs")
+e = pathlib.Path("runs/paper/error.json")
+if e.exists(): print("  последняя остановка:", json.loads(e.read_text()).get("reason"))
+s = pathlib.Path("runs/status.json")
+if s.exists():
+    st = json.loads(s.read_text()); print(f"  сезон {st.get('season', 1)}, состояние: {st.get('state')}")
+b = pathlib.Path("runs/brain/meta.json")
+print("  карта мозга:", f"{json.loads(b.read_text())['positioned']} нейронов" if b.exists() else "ещё строится")
+P
+    echo "  страница: $(URL)"
+    ;;
+  logs)     tmux attach -t stonkfly 2>/dev/null || echo "Не запущено." ;;
+  season)   ./new-season.sh ;;
+  update)
+    echo "Скачиваю обновления с GitHub…"
+    git pull --ff-only origin "$(git rev-parse --abbrev-ref HEAD)" || { echo "Не получилось, пришли вывод."; exit 1; }
+    sed -i 's/\r$//' ./*.sh stonkfly-cli ./*.py 2>/dev/null; chmod +x ./*.sh stonkfly-cli
+    .venv/bin/pip install -q -e '.[test]'
+    running && { "$0" restart; } || true
+    echo "Готово. Обнови страницу в браузере (Ctrl+F5)."
+    ;;
+  import)
+    # взять файлы, которые Claude положил в Загрузки\stonkfly-kit, и отправить на GitHub
+    SRC="/mnt/c/Users/$(winuser)/Downloads/stonkfly-kit"
+    [ -d "$SRC" ] || { echo "Нет папки $SRC"; exit 1; }
+    find "$SRC" -maxdepth 1 -type f ! -name stonkfly -exec cp {} . \; && sed -i 's/\r$//' ./*.sh stonkfly-cli ./*.py 2>/dev/null; chmod +x ./*.sh stonkfly-cli
+    git add -A -- ':!runs' ':!data' ':!.venv'
+    git commit -qm "${2:-Update from stonkfly-kit}" && git push -q origin HEAD:main && echo "Отправлено на GitHub." || echo "Нечего отправлять или ошибка git."
+    running && "$0" restart || true
+    ;;
+  *)
+    cat <<T
+stonkfly — управление мухой
+
+  stonkfly start     запустить (муха, страница, карта мозга)
+  stonkfly open      запустить и открыть страницу в браузере Windows
+                     (stonkfly open clean: чистый вид, stonkfly open full: с мозгом)
+  stonkfly status    что сейчас делает муха
+  stonkfly logs      живые логи (выйти: Ctrl+B, потом D)
+  stonkfly stop      остановить
+  stonkfly restart   перезапустить
+  stonkfly season    закончить сезон и начать новый с \$100
+  stonkfly update    скачать обновления с GitHub
+  stonkfly import    взять новые файлы из Загрузки\\stonkfly-kit и отправить на GitHub
+T
+    ;;
+esac

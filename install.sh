@@ -24,7 +24,9 @@ sudo -n ntpdate -u pool.ntp.org || true
 say "Код"
 if [ -d "$DIR/.git" ]; then git -C "$DIR" pull --ff-only || true; else git clone "$REPO" "$DIR"; fi
 cd "$DIR"
-chmod +x ./*.sh
+chmod +x ./*.sh stonkfly-cli
+mkdir -p "$HOME/.local/bin" && ln -sf "$DIR/stonkfly-cli" "$HOME/.local/bin/stonkfly"
+grep -q '.local/bin' "$HOME/.bashrc" || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
 
 say "Python-окружение"
 [ -d .venv ] || python3.11 -m venv .venv
@@ -45,8 +47,14 @@ say "Проверка доступа к Coinbase"
 code=$(curl -s -o /dev/null -w '%{http_code}' https://api.coinbase.com/api/v3/brokerage/market/products/BTC-USDC || true)
 [ "$code" = 200 ] && echo "OK" || echo "ВНИМАНИЕ: Coinbase ответил $code, нужен обход (podkop/VPN)"
 
-say "Готово. Запуск: ~/stonkfly/start.sh   (или ярлык Stonkfly.bat на рабочем столе)"
 WINUSER=$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r' || true)
 if [ -n "$WINUSER" ] && [ -d "/mnt/c/Users/$WINUSER/Desktop" ]; then
-  cp Stonkfly.bat "/mnt/c/Users/$WINUSER/Desktop/Stonkfly.bat" && echo "Ярлык положен на рабочий стол Windows"
+  cp Stonkfly.bat "/mnt/c/Users/$WINUSER/Desktop/Stonkfly.bat" && echo "Ярлык Stonkfly.bat положен на рабочий стол"
 fi
+
+say "Готово!"
+cat <<T
+  Запуск:      двойной клик по Stonkfly.bat на рабочем столе
+  Или тут:     stonkfly open
+  Все команды: stonkfly
+T
