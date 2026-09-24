@@ -27,7 +27,9 @@ canvas{display:block}
 #raster{width:14rem;height:4rem;border:1px solid #2a3d6b;background:#020510;image-rendering:pixelated}
 #ticker{right:1.5rem;bottom:1.3rem;width:30rem;font-size:.85rem}
 #ticker .h{color:#9fb3e8;font-size:.8rem;margin-bottom:.3rem}
-#ticker div.t{display:flex;justify-content:space-between;padding:.12rem 0;border-bottom:1px solid #16213f}
+#ticker div.t{display:grid;grid-template-columns:8.5rem 1fr 1fr 1fr;align-items:center;padding:.12rem 0;border-bottom:1px solid #16213f;font-variant-numeric:tabular-nums}
+#ticker div.t span{text-align:center}#ticker div.t span:first-child{text-align:left}#ticker div.t span:last-child{text-align:right}
+#ticker div.hd{color:#56618a;font-size:.72rem;border-bottom:1px solid #2a3d6b}
 #toast{position:fixed;left:50%;top:20%;transform:translate(-50%,-50%) scale(.8);font-size:3.4rem;letter-spacing:.12em;opacity:0;transition:all .35s;text-align:center;pointer-events:none}
 #toast small{display:block;font-size:1.1rem;letter-spacing:.05em;color:#dfe8ff;margin-top:.3rem}
 #toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
@@ -386,7 +388,7 @@ function hud(){
   $('syn').textContent=fmt(rows.reduce((a,x)=>a+(x.neural.memory?.changed_edges||0),0),0);
   $('lr').textContent=`${(+n.left_hz).toFixed(1)} / ${(+n.right_hz).toFixed(1)} Гц`;
   $('rate').textContent=(n.total_spikes/0.5/1000).toFixed(1)+'K';
-  $('tick').innerHTML=rows.slice(-7).reverse().map(x=>`<div class="t"><span>#${x.tick} ${new Date(x.wall_time*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><span class="${x.neural.side}">${x.neural.side}</span><span>${x.execution.status}</span><span class="${x.neural.stimulus}">${x.neural.stimulus==='none'?'·':x.neural.stimulus}</span></div>`).join('');
+  $('tick').innerHTML='<div class="t hd"><span>тик · время</span><span>решение</span><span>исполнение</span><span>стимул</span></div>'+rows.slice(-7).reverse().map(x=>`<div class="t"><span>#${x.tick} ${new Date(x.wall_time*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><span class="${x.neural.side}">${x.neural.side}</span><span>${x.execution.status}</span><span class="${x.neural.stimulus}">${x.neural.stimulus==='none'?'·':x.neural.stimulus}</span></div>`).join('');
 }
 // ================= sound (синтез WebAudio, без файлов) =================
 const SND={on:qs.get('sound')!=='0',vol:+(qs.get('vol')||.6),amb:qs.get('ambient')==='1'};
