@@ -42,7 +42,7 @@ canvas{display:block}
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
 <body>
-<div id="title"><span class="n">STONKFLY</span><span id="live"><i></i>LIVE</span><div class="m" id="src">загрузка…</div></div>
+<div id="title"><div class="m" id="src">загрузка…</div></div>
 <div id="stats" class="panel">
   <div class="s HOLD" id="side">—</div>
   <div class="row"><span>баланс</span><b id="eq">—</b></div>
@@ -76,7 +76,7 @@ const qs=new URLSearchParams(location.search);
 const RUN=qs.get('run')||'paper', BASE=`runs/${RUN}/`, STREAM=qs.has('stream');
 let DEMO=qs.has('demo');
 const $=id=>document.getElementById(id);
-if(STREAM){$('live').style.display='inline-block';setTimeout(()=>$('help').style.display='none',8000);}
+if(STREAM){setTimeout(()=>$('help').style.display='none',8000);}
 const AUTO=qs.has('auto')||qs.has('shot');
 
 // ================= scene =================
@@ -231,7 +231,11 @@ const top=new THREE.Mesh(new THREE.BoxGeometry(8,.18,3.6),flat(0x1a2044,{roughne
 // monitor
 const mon=new THREE.Group();mon.position.set(2.4,1.55,-1.9);mon.rotation.y=-.28;scene.add(mon);
 mon.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(3.5,2.1,.12),flat(0x0c0f1e)),{castShadow:true}));
-const stand=new THREE.Mesh(new THREE.BoxGeometry(.2,1.4,.2),flat(0x0c0f1e));stand.position.set(0,-1.2,-.1);mon.add(stand);
+// stand: mount plate on the back → neck → base on the desk (desk top is y=-1.46 in monitor space)
+const standM=std(0x1a1e30,{metalness:.6,roughness:.4});
+const mount=new THREE.Mesh(new THREE.BoxGeometry(.6,.5,.08),standM);mount.position.set(0,-.2,-.1);mon.add(mount);
+const neck=new THREE.Mesh(new RoundedBoxGeometry(.24,1.3,.12,2,.04),standM);neck.position.set(0,-.82,-.2);neck.rotation.x=-.08;neck.castShadow=true;mon.add(neck);
+const sbase=new THREE.Mesh(new RoundedBoxGeometry(1.0,.06,.62,3,.03),standM);sbase.position.set(0,-1.43,-.15);sbase.castShadow=sbase.receiveShadow=true;mon.add(sbase);
 const scrC=document.createElement('canvas');scrC.width=1024;scrC.height=600;
 const scrT=new THREE.CanvasTexture(scrC);scrT.colorSpace=THREE.SRGBColorSpace;
 const screen=new THREE.Mesh(new THREE.PlaneGeometry(3.34,1.96),new THREE.MeshBasicMaterial({map:scrT,toneMapped:false}));screen.position.z=.065;mon.add(screen);
@@ -240,9 +244,22 @@ const screen=new THREE.Mesh(new THREE.PlaneGeometry(3.34,1.96),new THREE.MeshBas
 const kb=new THREE.Group();kb.position.set(1.25,.13,.05);kb.rotation.y=-.25;scene.add(kb);
 kb.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(1.8,.08,.6),flat(0x151a33)),{receiveShadow:true}));
 const keys=[];for(let r=0;r<4;r++)for(let c=0;c<12;c++){const k=new THREE.Mesh(new THREE.BoxGeometry(.11,.05,.1),flat(0x252c52));k.position.set(-.75+c*.137,.06,-.2+r*.135);kb.add(k);keys.push(k);}
-const mug=new THREE.Mesh(new THREE.CylinderGeometry(.18,.16,.36,12),flat(0x6a3aa0));mug.position.set(3.4,.27,.2);mug.castShadow=true;scene.add(mug);
-const spk=new THREE.Group();spk.position.set(5.2,-.2,.6);spk.rotation.y=-.5;scene.add(spk);
-spk.add(new THREE.Mesh(new THREE.BoxGeometry(1.2,2.6,1),flat(0x0d1124)));
+// mouse + mousepad to the right of the keyboard
+const mpad=new THREE.Group();mpad.position.set(2.85,.095,.25);mpad.rotation.y=-.25;scene.add(mpad);
+const padM=new THREE.Mesh(new RoundedBoxGeometry(1.3,.02,1.0,2,.01),flat(0x10142a,{roughness:.9}));padM.receiveShadow=true;mpad.add(padM);
+const padEdge=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(1.26,.96).rotateX(-Math.PI/2)),new THREE.LineBasicMaterial({color:0x3ff0ff}));padEdge.position.y=.012;mpad.add(padEdge);
+const mouse=new THREE.Group();mouse.position.set(.05,.02,.05);mouse.scale.setScalar(2.2);mpad.add(mouse);
+const mBody=new THREE.Mesh(new THREE.SphereGeometry(.5,24,16),std(0x1a1d30,{roughness:.35,metalness:.2}));mBody.scale.set(.14,.08,.22);mBody.position.y=.03;mBody.castShadow=true;mouse.add(mBody);
+const split=new THREE.Mesh(new THREE.BoxGeometry(.004,.008,.09),std(0x05060c));split.position.set(0,.068,-.06);mouse.add(split);
+const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,.018,12),std(0x444a66));wheel.rotation.z=Math.PI/2;wheel.position.set(0,.066,-.05);mouse.add(wheel);
+const mLed=new THREE.Mesh(new THREE.TorusGeometry(.5,.015,6,32),glow(0x3ff0ff));mLed.scale.set(.14,.22,1);mLed.rotation.x=Math.PI/2;mLed.position.y=.012;mouse.add(mLed);
+const mug=new THREE.Mesh(new THREE.CylinderGeometry(.18,.16,.36,12),flat(0x6a3aa0));mug.position.set(4.0,.27,-1.1);mug.castShadow=true;scene.add(mug);
+// floor speaker, standing clear of the desk
+const spk=new THREE.Group();spk.position.set(6.1,-.27,-1.4);spk.rotation.y=-.45;scene.add(spk);
+const cab=new THREE.Mesh(new RoundedBoxGeometry(1.2,2.6,1,3,.05),std(0x151827,{roughness:.6}));cab.castShadow=true;spk.add(cab);
+[.55,-.55].forEach(y=>{const c=new THREE.Mesh(new THREE.CylinderGeometry(.34,.22,.08,24),std(0x0a0b12,{roughness:.9}));c.rotation.x=Math.PI/2;c.position.set(0,y,.49);spk.add(c);
+  const dust=new THREE.Mesh(new THREE.SphereGeometry(.09,12,8),std(0x22263a,{metalness:.5}));dust.scale.z=.5;dust.position.set(0,y,.5);spk.add(dust);});
+const tw=new THREE.Mesh(new THREE.TorusGeometry(.1,.02,6,20),std(0x3a3f55,{metalness:.7}));tw.position.set(0,1.05,.51);spk.add(tw);
 const rings=[.55,-.55].map(y=>{const r=new THREE.Mesh(new THREE.TorusGeometry(.36,.035,6,24),glow(0x3ff0ff));r.position.set(0,y,.52);spk.add(r);return r;});
 
 // ================= the fly (Drosophila) =================
