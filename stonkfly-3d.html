@@ -668,14 +668,14 @@ function director(now,dt){
 const clock=new THREE.Clock();
 const CAM_MIN=new THREE.Vector3(RX0+.4,RY0+.3,RZ0+.4),CAM_MAX=new THREE.Vector3(RX1-.4,RY1-.3,RZ1-.4);let groomNext=6,groomT=-1;
 const tmp=new THREE.Vector3();
-let clockTxt='',lastFrame=0,frameN=0,uiT=0,fpsN=0,fpsT=performance.now();
+let cpuSum=0,clockTxt='',lastFrame=0,frameN=0,uiT=0,fpsN=0,fpsT=performance.now();
 function animate(){
   requestAnimationFrame(animate);
   const now=performance.now();if(now-lastFrame<1000/FPS-2)return;lastFrame=now;frameN++;
   const dt=Math.min(.05,clock.getDelta()),t=clock.elapsedTime;
   if(frameN%2===0)renderer.shadowMap.needsUpdate=true;
   const uiTick=now-uiT>100;if(uiTick)uiT=now;
-  fpsN++;if(now-fpsT>1000){if(fpsEl.style.display==='block')fpsEl.textContent=fpsN+' FPS · '+renderer.info.render.calls+' draw calls · '+GPU+(LOW?' · q=low':'');fpsN=0;fpsT=now;}
+  fpsN++;if(now-fpsT>1000){if(fpsEl.style.display==='block')fpsEl.textContent=fpsN+' FPS · JS '+(cpuSum/Math.max(1,fpsN)).toFixed(1)+' мс/кадр · '+renderer.info.render.calls+' draw calls · '+renderer.domElement.width+'×'+renderer.domElement.height+' · '+GPU+(LOW?' · q=low':'');cpuSum=0;fpsN=0;fpsT=now;}
   const pos=rainGeo.attributes.position.array;for(let i=0;i<RAIN;i++){let y=pos[i*6+1]-.25;if(y<-2)y+=20;pos[i*6+1]=y;pos[i*6+4]=y-.5;}rainGeo.attributes.position.needsUpdate=true;
   let buzz=0,tap=0,shiver=0,eyeGlow=0,trading=false;
   if(replay){const k=(now-replay.t0)/replay.dur,n=replay.r.neural;
@@ -713,7 +713,7 @@ function animate(){
   screenLight.intensity=6+Math.sin(t*3)*.4;
   if(AUTO)director(now,dt);else controls.update();
   camera.position.clamp(CAM_MIN,CAM_MAX);
-  renderer.render(scene,camera);}
+  renderer.render(scene,camera);cpuSum+=performance.now()-now;}
 audioInit();drawScreen(false);animate();poll();setInterval(poll,3000);
 </script>
 </body>
