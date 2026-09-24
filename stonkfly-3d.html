@@ -70,6 +70,7 @@ canvas{display:block}
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const qs=new URLSearchParams(location.search);
 const RUN=qs.get('run')||'paper', BASE=`runs/${RUN}/`, STREAM=qs.has('stream');
@@ -160,13 +161,24 @@ box(WX1-WX0+.6,.1,.6,frame,[(WX0+WX1)/2,WY0-.08,RZ0+.2]);
 plane(WX1-WX0,WY1-WY0,new THREE.MeshBasicMaterial({color:0x6a8cff,transparent:true,opacity:.06,depthWrite:false}),[(WX0+WX1)/2,(WY0+WY1)/2,RZ0-.05],[0,0,0]);
 // neon strip under ceiling
 box(RX1-RX0,.05,.05,glow(0xff3fa0),[(RX0+RX1)/2,RY1-.15,RZ0+.08]);
-// desk lamp
-const lamp=new THREE.Group();lamp.position.set(-2.6,.09,-1.7);scene.add(lamp);const lm=std(0x20243a,{metalness:.6,roughness:.4});
-box(.5,.06,.5,lm,[0,.03,0],lamp);
-const a1=box(.06,1.3,.06,lm,[0,.65,0],lamp);a1.rotation.z=-.25;a1.position.x=.16;
-const shadeM=new THREE.Mesh(new THREE.ConeGeometry(.28,.4,16,1,true),new THREE.MeshStandardMaterial({color:0x20243a,side:THREE.DoubleSide,metalness:.5}));shadeM.position.set(.55,1.25,.1);shadeM.rotation.z=-2.3;lamp.add(shadeM);
-const bulb=new THREE.Mesh(new THREE.SphereGeometry(.08,8,8),glow(0xffd9a0));bulb.position.set(.62,1.18,.1);lamp.add(bulb);
-const lampLight=new THREE.PointLight(0xffb070,5,7,1.6);lampLight.position.set(.75,1.0,.1);lamp.add(lampLight);
+// desk lamp: base → lower arm → joint → upper arm → shade pointing down at the fly
+const lamp=new THREE.Group();lamp.position.set(-2.7,.09,-1.6);lamp.rotation.y=-.35;scene.add(lamp);
+const lm=std(0x2a2f48,{metalness:.7,roughness:.35});
+function rod(a,b,r,parent){const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A);
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),10),lm);m.position.copy(A).add(B).multiplyScalar(.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());m.castShadow=true;parent.add(m);return m;}
+const lbase=new THREE.Mesh(new THREE.CylinderGeometry(.28,.32,.07,24),lm);lbase.position.y=.035;lbase.castShadow=true;lamp.add(lbase);
+const J1=[0,.07,0],J2=[.25,1.05,0],J3=[.85,1.45,0];
+rod(J1,J2,.035,lamp);rod(J2,J3,.03,lamp);
+[J1,J2,J3].forEach(j=>{const k=new THREE.Mesh(new THREE.SphereGeometry(.055,12,8),lm);k.position.set(...j);lamp.add(k);});
+const lhead=new THREE.Group();lhead.position.set(...J3);lhead.rotation.z=.55;lamp.add(lhead);
+const SH=.42;
+const shOut=new THREE.Mesh(new THREE.ConeGeometry(.3,SH,24,1,true),new THREE.MeshStandardMaterial({color:0x2a2f48,metalness:.7,roughness:.35,side:THREE.FrontSide}));shOut.position.y=-SH/2;shOut.castShadow=true;lhead.add(shOut);
+const shIn=new THREE.Mesh(new THREE.ConeGeometry(.29,SH-.01,24,1,true),new THREE.MeshStandardMaterial({color:0xffe2b0,emissive:0xffb060,emissiveIntensity:.6,side:THREE.BackSide}));shIn.position.y=-SH/2;lhead.add(shIn);
+const bulb=new THREE.Mesh(new THREE.SphereGeometry(.09,12,10),glow(0xfff0d0));bulb.position.y=-SH*.75;lhead.add(bulb);
+const lampLight=new THREE.SpotLight(0xffb070,14,8,.75,.6,1.4);lampLight.position.y=-SH*.7;lhead.add(lampLight);
+const lampTgt=new THREE.Object3D();lampTgt.position.y=-3;lhead.add(lampTgt);lampLight.target=lampTgt;
+const lampFill=new THREE.PointLight(0xffb070,1.5,4,1.8);lampFill.position.y=-SH;lhead.add(lampFill);
 // bookshelf on left wall
 const shelf=new THREE.Group();shelf.position.set(RX0+.35,RY0,-.5);scene.add(shelf);const sw=std(0x3b2a20);
 box(.6,4.2,.08,sw,[0,2.1,-1.5],shelf);box(.6,4.2,.08,sw,[0,2.1,1.5],shelf);box(.1,4.2,3,sw,[-.28,2.1,0],shelf);
@@ -183,11 +195,13 @@ box(1.3,.18,1.3,cm,[0,1.2,0],chair);const back=box(1.3,1.6,.16,cm,[0,2.1,.62],ch
 const pole=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,1,8),std(0x777c90,{metalness:.8,roughness:.3}));pole.position.y=.65;chair.add(pole);
 for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const leg=box(.75,.07,.1,cm,[Math.cos(a)*.37,.18,Math.sin(a)*.37],chair);leg.rotation.y=-a;
   const w=new THREE.Mesh(new THREE.SphereGeometry(.07,8,6),cm);w.position.set(Math.cos(a)*.72,.07,Math.sin(a)*.72);chair.add(w);}
+function rbox(w,h,d,mat,pos,parent=scene){const m=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,3,Math.min(w,h,d)*.18),mat);m.position.set(...pos);m.castShadow=m.receiveShadow=true;parent.add(m);return m;}
 // sofa on the right
-const sofa=new THREE.Group();sofa.position.set(RX1-1.1,RY0,5.8);scene.add(sofa);const sm=std(0x3a3060,{roughness:.95});
-box(1.8,.8,4.2,sm,[0,.45,0],sofa);box(.45,1.5,4.2,sm,[.75,1.1,0],sofa);box(1.8,1.1,.4,sm,[0,.75,-2.2],sofa);box(1.8,1.1,.4,sm,[0,.75,2.2],sofa);
-[-1.1,0,1.1].forEach(z=>box(1.4,.3,1.05,std(0x4a3f78,{roughness:.95}),[-.1,.98,z],sofa));
-box(.9,.8,.3,std(0x3ff0ff,{emissive:0x0a3040}),[-.2,1.5,-1.3],sofa).rotation.y=.3;
+const sofa=new THREE.Group();sofa.position.set(RX1-1.1,RY0,5.8);scene.add(sofa);const sm=std(0x4a4088,{roughness:.95});
+rbox(1.8,.8,4.2,sm,[0,.45,0],sofa);rbox(.45,1.5,4.2,sm,[.75,1.1,0],sofa);rbox(1.8,1.1,.4,sm,[0,.75,-2.2],sofa);rbox(1.8,1.1,.4,sm,[0,.75,2.2],sofa);
+[-1.1,0,1.1].forEach(z=>rbox(1.4,.3,1.05,std(0x5a4f98,{roughness:.95}),[-.1,.98,z],sofa));
+[[-1.3,0xc0508a,.25],[1.35,0x2fb8c8,-.2]].forEach(([z,c,ry])=>{const pl=new THREE.Mesh(new RoundedBoxGeometry(.26,.85,.85,4,.12),std(c,{roughness:.95}));
+  pl.position.set(.42,1.5,z);pl.rotation.set(0,ry,-.28);pl.castShadow=true;sofa.add(pl);});
 // poster on right wall
 const posterTex=canvasTex(256,340,(g,w,h)=>{g.fillStyle='#0b0f24';g.fillRect(0,0,w,h);g.strokeStyle='#ffd06a';g.lineWidth=4;g.strokeRect(8,8,w-16,h-16);
   let y=230;for(let i=0;i<14;i++){const d=(Math.random()-.35)*30;g.fillStyle=d<0?'#26d98a':'#ff4d6d';g.fillRect(24+i*15,Math.min(y,y+d)-40,10,Math.abs(d)+6);y+=d*-.6;}
