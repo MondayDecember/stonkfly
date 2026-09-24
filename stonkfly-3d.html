@@ -63,7 +63,8 @@ canvas{display:block}
 <div id="toast"></div>
 <div id="over"><span id="overT">GAME OVER</span><small id="overS"></small></div>
 <div id="disc">коннектом мухи дрозофилы торгует BTC на виртуальные $100 · реальные цены Coinbase · эксперимент, не финансовый совет</div>
-<div id="help">мышь: вращать · колесо: зум · ?stream=1 — режим для трансляции</div>
+<div id="help">ЛКМ: вращать · ПКМ: сдвигать · колесо: зум · C: ссылка с этой камерой · R: сброс</div>
+<div id="camMsg" style="position:fixed;left:50%;top:3rem;transform:translateX(-50%);font-size:.9rem;background:rgba(5,10,25,.9);border:1px solid #2a3d6b;padding:.4rem .8rem;display:none"></div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -73,7 +74,8 @@ const qs=new URLSearchParams(location.search);
 const RUN=qs.get('run')||'paper', BASE=`runs/${RUN}/`, STREAM=qs.has('stream');
 let DEMO=qs.has('demo');
 const $=id=>document.getElementById(id);
-if(STREAM){$('live').style.display='inline-block';$('help').style.display='none';}
+if(STREAM){$('live').style.display='inline-block';setTimeout(()=>$('help').style.display='none',8000);}
+const AUTO=qs.has('auto')||qs.has('shot');
 
 // ================= scene =================
 const renderer=new THREE.WebGLRenderer({antialias:true});
@@ -89,7 +91,22 @@ const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.05,200);
 camera.position.set(-5.2,4.2,7.4);
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.target.set(.6,1.1,-.6); controls.enableDamping=true; controls.maxDistance=18; controls.minDistance=1.5; controls.maxPolarAngle=1.5;
-controls.enabled=!STREAM;
+controls.enabled=!AUTO; controls.enablePan=true; controls.screenSpacePanning=true;
+// free camera: ?cam= in URL > saved in browser > default
+const DEF_CAM=[-5.2,4.2,7.4,.6,1.1,-.6];
+function applyCam(c){camera.position.set(c[0],c[1],c[2]);controls.target.set(c[3],c[4],c[5]);controls.update();}
+function camNow(){return [...camera.position.toArray(),...controls.target.toArray()].map(v=>+v.toFixed(3));}
+let saved=null;try{saved=JSON.parse(localStorage.getItem('stonkfly-cam'));}catch{}
+const urlCam=qs.get('cam')?qs.get('cam').split(',').map(Number):null;
+applyCam(urlCam&&urlCam.length===6&&urlCam.every(isFinite)?urlCam:(saved&&saved.length===6?saved:DEF_CAM));
+controls.addEventListener('end',()=>{try{localStorage.setItem('stonkfly-cam',JSON.stringify(camNow()));}catch{}});
+function camMsg(t){const m=$('camMsg');m.textContent=t;m.style.display='block';clearTimeout(camMsg.h);camMsg.h=setTimeout(()=>m.style.display='none',4000);}
+addEventListener('keydown',e=>{
+  if(e.code==='KeyC'){const u=new URL(location.href);u.searchParams.set('cam',camNow().join(','));u.searchParams.delete('auto');
+    navigator.clipboard?.writeText(u.toString()).then(()=>camMsg('ссылка с камерой скопирована'),()=>camMsg(u.toString()));
+    try{localStorage.setItem('stonkfly-cam',JSON.stringify(camNow()));}catch{}}
+  if(e.code==='KeyR'){applyCam(DEF_CAM);try{localStorage.removeItem('stonkfly-cam');}catch{}camMsg('камера сброшена');}
+});
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 
 scene.add(new THREE.HemisphereLight(0x6a7cff,0x0a0a20,.6));
@@ -303,7 +320,7 @@ function overlay(){const o=$('over');
 function startReplay(r){const n=r.neural;
   replay={r,t0:performance.now(),dur:3400,rates:{l:Math.min(.9,n.left_hz/25),r:Math.min(.9,n.right_hz/25),gate:Math.min(.9,n.gate_spikes/8),kc:Math.min(.6,n.KC_spikes/1500),rew:Math.min(.9,n.reward_spikes/80),ave:Math.min(.9,n.aversive_spikes/30)}};
   hud();drawScreen(false);
-  if(STREAM&&!FIXED&&n.side!=='HOLD') cut(SHOTS.keys,5000);}
+  if(AUTO&&!FIXED&&n.side!=='HOLD') cut(SHOTS.keys,5000);}
 
 // ================= camera director (stream) =================
 const SHOTS={
@@ -353,7 +370,7 @@ function animate(){
     l.cur.lerp(l.target,.25);solveLeg(l);});
   rings.forEach((r,i)=>r.scale.setScalar(1+Math.sin(t*6+i)*.04*(1+buzz*6)));
   screenLight.intensity=6+Math.sin(t*3)*.4;
-  if(STREAM)director(now,dt);else controls.update();
+  if(AUTO)director(now,dt);else controls.update();
   renderer.render(scene,camera);}
 drawScreen(false);animate();poll();setInterval(poll,3000);
 </script>
