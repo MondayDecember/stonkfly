@@ -61,9 +61,10 @@ canvas{display:block}
 </div>
 <div id="ticker" class="panel"><div class="h">ПОСЛЕДНИЕ РЕШЕНИЯ</div><div id="tick"></div></div>
 <div id="toast"></div>
+<button id="snd" style="position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);font:inherit;font-size:1rem;color:#dfe8ff;background:rgba(5,10,25,.9);border:1px solid #5cf;padding:.5rem 1rem;cursor:pointer;display:none">🔊 включить звук</button>
 <div id="over"><span id="overT">GAME OVER</span><small id="overS"></small></div>
 <div id="disc">коннектом мухи дрозофилы торгует BTC на виртуальные $100 · реальные цены Coinbase · эксперимент, не финансовый совет</div>
-<div id="help">ЛКМ: вращать · ПКМ: сдвигать · колесо: зум · C: ссылка с этой камерой · R: сброс</div>
+<div id="help">ЛКМ: вращать · ПКМ: сдвигать · колесо: зум · C: ссылка с этой камерой · R: сброс · M: звук</div>
 <div id="camMsg" style="position:fixed;left:50%;top:3rem;transform:translateX(-50%);font-size:.9rem;background:rgba(5,10,25,.9);border:1px solid #2a3d6b;padding:.4rem .8rem;display:none"></div>
 
 <script type="module">
@@ -282,7 +283,50 @@ function hud(){
   $('rate').textContent=(n.total_spikes/0.5/1000).toFixed(1)+'K';
   $('tick').innerHTML=rows.slice(-7).reverse().map(x=>`<div class="t"><span>#${x.tick} ${new Date(x.wall_time*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><span class="${x.neural.side}">${x.neural.side}</span><span>${x.execution.status}</span><span class="${x.neural.stimulus}">${x.neural.stimulus==='none'?'·':x.neural.stimulus}</span></div>`).join('');
 }
+// ================= sound (синтез WebAudio, без файлов) =================
+const SND={on:qs.get('sound')!=='0',vol:+(qs.get('vol')||.6),amb:qs.get('ambient')!=='0'};
+let AC=null,MASTER=null,AMB=null;
+function audioInit(){
+  if(AC||!SND.on)return;
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  MASTER=AC.createGain();MASTER.gain.value=SND.vol;
+  const comp=AC.createDynamicsCompressor();MASTER.connect(comp).connect(AC.destination);
+  // простая «комната»: задержка с обратной связью
+  const dl=AC.createDelay();dl.delayTime.value=.18;const fb=AC.createGain();fb.gain.value=.28;const wet=AC.createGain();wet.gain.value=.25;
+  MASTER.connect(dl);dl.connect(fb).connect(dl);dl.connect(wet).connect(comp);
+  if(SND.amb)ambient();
+  const b=$('snd');const upd=()=>{b.style.display=AC.state==='running'?'none':'block';};
+  AC.onstatechange=upd;AC.resume().then(upd,upd);setTimeout(upd,500);}
+function unlock(){audioInit();AC&&AC.resume();}
+$('snd').onclick=unlock;addEventListener('pointerdown',unlock);addEventListener('keydown',e=>{if(e.code==='KeyM'&&AC){MASTER.gain.value=MASTER.gain.value>0?0:SND.vol;}else unlock();});
+function tone(f,t,d,{type='sine',g=.3,to=null,a=.01,lp=null}={}){
+  const o=AC.createOscillator(),v=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);
+  v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(g,t+a);v.gain.exponentialRampToValueAtTime(.0001,t+d);
+  let n=o;if(lp){const fl=AC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=lp;n.connect(fl);n=fl;}
+  n.connect(v).connect(MASTER);o.start(t);o.stop(t+d+.05);}
+function noiseBuf(){const b=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return b;}
+function ambient(){ // тихий дождь за окном
+  const src=AC.createBufferSource();src.buffer=noiseBuf();src.loop=true;
+  const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2500;bp.Q.value=.4;
+  AMB=AC.createGain();AMB.gain.value=.035;src.connect(bp).connect(AMB).connect(MASTER);src.start();}
+const SFX={
+  buy(t){[988,1319].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:4000}));tone(1976,t+.16,.5,{g:.08});},
+  sell(t){[1319,988].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:3000}));tone(494,t+.16,.5,{type:'triangle',g:.15});},
+  veto(t){[0,.14].forEach(d=>tone(140,t+d,.12,{type:'square',g:.15,lp:900}));},
+  reward(t){[523,659,784,1047,1319].forEach((f,i)=>tone(f,t+i*.07,.9,{type:'triangle',g:.14}));
+    const o=AC.createOscillator(),v=AC.createGain(),lf=AC.createOscillator(),lg=AC.createGain(); // жужжание крыльев
+    o.type='sawtooth';o.frequency.value=205;lf.frequency.value=28;lg.gain.value=.05;lf.connect(lg).connect(v.gain);
+    const fl=AC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=900;
+    v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(.07,t+.3);v.gain.linearRampToValueAtTime(0,t+2.2);
+    o.connect(fl).connect(v).connect(MASTER);o.start(t);lf.start(t);o.stop(t+2.3);lf.stop(t+2.3);},
+  aversive(t){tone(233,t,.7,{type:'sawtooth',g:.16,to:98,lp:700});tone(220,t+.05,.7,{type:'sawtooth',g:.1,to:92,lp:500});},
+  gameover(t){[392,370,349,294].forEach((f,i)=>tone(f,t+i*.45,i<3?.45:1.6,{type:'triangle',g:.2,to:i<3?null:280}));}};
+function play(name,delay=0){if(!AC||AC.state!=='running'||!SFX[name])return;SFX[name](AC.currentTime+delay);}
+
 function announce(r){
+  {const n=r.neural,ex=r.execution;
+   if(n.stimulus==='reward')play('reward');if(n.stimulus==='aversive')play('aversive');
+   if(n.side!=='HOLD')play(ex.status==='FILLED'?(n.side==='BUY'?'buy':'sell'):'veto',1.85);}
   const n=r.neural,ex=r.execution;
   if(n.side!=='HOLD'&&ex.status==='FILLED') toast(`${n.side==='BUY'?'КУПИЛА':'ПРОДАЛА'}<small>${ex.base?(+ex.base).toFixed(6)+' BTC · $'+(+ex.quote).toFixed(2):''} по ${fmt(mid(r))}</small>`,n.side);
   else if(n.side!=='HOLD') toast(`${n.side}?<small>защита не пустила: ${ex.reason||ex.status}</small>`,'HOLD');
@@ -314,7 +358,8 @@ async function poll(){
   const r=fakeRow(rows.length,rows.at(-1));rows.push(r);if(rows.length>200)rows.shift();startReplay(r);if(!first)announce(r);first=false;
   $('src').textContent='ДЕМО: случайные данные (живая муха — у автора на компьютере)';
 }
-function overlay(){const o=$('over');
+let wasOver=false;
+function overlay(){const o=$('over');const isOver=runState.state==='gameover';if(isOver&&!wasOver&&!first)play('gameover');wasOver=isOver;
   if(runState.state==='gameover'){o.style.display='flex';$('overT').textContent='GAME OVER';$('overS').textContent='муха проиграла $20 лимита · скоро новый сезон';}
   else o.style.display='none';}
 function startReplay(r){const n=r.neural;
@@ -372,7 +417,7 @@ function animate(){
   screenLight.intensity=6+Math.sin(t*3)*.4;
   if(AUTO)director(now,dt);else controls.update();
   renderer.render(scene,camera);}
-drawScreen(false);animate();poll();setInterval(poll,3000);
+audioInit();drawScreen(false);animate();poll();setInterval(poll,3000);
 </script>
 </body>
 </html>
