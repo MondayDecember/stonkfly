@@ -30,9 +30,9 @@ canvas{display:block}
 #brainCap{position:fixed;font-size:.72rem;color:#8fe8ff;text-shadow:0 0 .4rem #3ff0ff;pointer-events:none;white-space:nowrap;transform:translate(-50%,0)}
 #hud .h{display:flex;justify-content:space-between;font-size:.8rem;color:#9fb3e8;border-left:.2rem solid #5cf;padding-left:.4rem}
 #hud .row{display:flex;gap:.7rem;align-items:flex-end}
-#hud .big{font-size:2rem;margin-top:.3rem}
+#hud .big{font-size:1.8rem;margin-top:.3rem;white-space:nowrap}
 #hud .lbl{font-size:.7rem;color:#8595c0;margin-top:.25rem}
-#raster{width:14rem;height:4rem;border:1px solid #2a3d6b;background:#020510;image-rendering:pixelated}
+#raster{width:12rem;height:4rem;border:1px solid #2a3d6b;background:#020510;image-rendering:pixelated}
 #ticker{right:1.5rem;bottom:1.3rem;width:30rem;font-size:.85rem}
 #ticker .h{color:#9fb3e8;font-size:.8rem;margin-bottom:.3rem}
 #ticker div.t{display:grid;grid-template-columns:8.5rem 1fr 1fr 1fr;align-items:center;padding:.12rem 0;border-bottom:1px solid #16213f;font-variant-numeric:tabular-nums}
@@ -117,10 +117,13 @@ addEventListener('keydown',e=>{if(e.code==='KeyB'){VIEW.brain=!VIEW.brain;applyV
 
 // ================= scene =================
 const FPS=+(qs.get('fps')||(STREAM?30:60));
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(+(qs.get('dpr')||Math.min(devicePixelRatio,STREAM?1:1.5)));
+const LOW=qs.get('q')==='low';
+const renderer=new THREE.WebGLRenderer({antialias:!LOW,powerPreference:'high-performance'});
+renderer.setPixelRatio(+(qs.get('dpr')||(LOW?.75:Math.min(devicePixelRatio,STREAM?1:1.5))));
+let GPU='?';try{const gl=renderer.getContext(),ext=gl.getExtension('WEBGL_debug_renderer_info');GPU=ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);}catch{}
+GPU=GPU.replace(/^ANGLE \((.*)\)$/,'$1');
 renderer.setSize(innerWidth,innerHeight);
-renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled=!LOW; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.15;
 document.body.prepend(renderer.domElement);
 const scene=new THREE.Scene();
@@ -672,7 +675,7 @@ function animate(){
   const dt=Math.min(.05,clock.getDelta()),t=clock.elapsedTime;
   if(frameN%2===0)renderer.shadowMap.needsUpdate=true;
   const uiTick=now-uiT>100;if(uiTick)uiT=now;
-  fpsN++;if(now-fpsT>1000){if(fpsEl.style.display==='block')fpsEl.textContent=fpsN+' FPS · '+renderer.info.render.calls+' draw calls';fpsN=0;fpsT=now;}
+  fpsN++;if(now-fpsT>1000){if(fpsEl.style.display==='block')fpsEl.textContent=fpsN+' FPS · '+renderer.info.render.calls+' draw calls · '+GPU+(LOW?' · q=low':'');fpsN=0;fpsT=now;}
   const pos=rainGeo.attributes.position.array;for(let i=0;i<RAIN;i++){let y=pos[i*6+1]-.25;if(y<-2)y+=20;pos[i*6+1]=y;pos[i*6+4]=y-.5;}rainGeo.attributes.position.needsUpdate=true;
   let buzz=0,tap=0,shiver=0,eyeGlow=0,trading=false;
   if(replay){const k=(now-replay.t0)/replay.dur,n=replay.r.neural;
