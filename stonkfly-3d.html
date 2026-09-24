@@ -284,7 +284,7 @@ function hud(){
   $('tick').innerHTML=rows.slice(-7).reverse().map(x=>`<div class="t"><span>#${x.tick} ${new Date(x.wall_time*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><span class="${x.neural.side}">${x.neural.side}</span><span>${x.execution.status}</span><span class="${x.neural.stimulus}">${x.neural.stimulus==='none'?'·':x.neural.stimulus}</span></div>`).join('');
 }
 // ================= sound (синтез WebAudio, без файлов) =================
-const SND={on:qs.get('sound')!=='0',vol:+(qs.get('vol')||.6),amb:qs.get('ambient')!=='0'};
+const SND={on:qs.get('sound')!=='0',vol:+(qs.get('vol')||.6),amb:qs.get('ambient')==='1'};
 let AC=null,MASTER=null,AMB=null;
 function audioInit(){
   if(AC||!SND.on)return;
@@ -304,11 +304,11 @@ function tone(f,t,d,{type='sine',g=.3,to=null,a=.01,lp=null}={}){
   v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(g,t+a);v.gain.exponentialRampToValueAtTime(.0001,t+d);
   let n=o;if(lp){const fl=AC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=lp;n.connect(fl);n=fl;}
   n.connect(v).connect(MASTER);o.start(t);o.stop(t+d+.05);}
-function noiseBuf(){const b=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return b;}
-function ambient(){ // тихий дождь за окном
-  const src=AC.createBufferSource();src.buffer=noiseBuf();src.loop=true;
-  const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2500;bp.Q.value=.4;
-  AMB=AC.createGain();AMB.gain.value=.035;src.connect(bp).connect(AMB).connect(MASTER);src.start();}
+function ambient(){ // мягкий синт-пэд, аккорды медленно сменяются (только с &ambient=1)
+  AMB=AC.createGain();AMB.gain.value=.05;const fl=AC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=700;AMB.connect(fl).connect(MASTER);
+  const CH=[[110,165,220,277],[98,147,196,247],[87,131,175,220],[104,156,208,262]];let i=0;
+  const voices=CH[0].map(f=>{const o=AC.createOscillator();o.type='triangle';o.frequency.value=f;o.detune.value=(Math.random()-.5)*12;o.connect(AMB);o.start();return o;});
+  setInterval(()=>{i=(i+1)%CH.length;voices.forEach((o,k)=>o.frequency.setTargetAtTime(CH[i][k],AC.currentTime,1.5));},12000);}
 const SFX={
   buy(t){[988,1319].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:4000}));tone(1976,t+.16,.5,{g:.08});},
   sell(t){[1319,988].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:3000}));tone(494,t+.16,.5,{type:'triangle',g:.15});},
