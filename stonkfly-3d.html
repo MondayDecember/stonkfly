@@ -58,7 +58,8 @@ canvas{display:block}
   <div class="row"><span>баланс</span><b id="eq">—</b></div>
   <div class="row"><span>прибыль</span><b id="pnl">—</b></div>
   <div class="row"><span>сделок</span><b id="trades">—</b></div>
-  <div class="row"><span>синапсов изменено</span><b id="syn">—</b></div>
+  <div class="row"><span>синапсов памяти изменено</span><b id="syn">—</b></div>
+  <div class="row"><span>сила памяти</span><b id="eff">—</b></div>
   <div class="row"><span>DNp20 лев / прав</span><b id="lr">—</b></div>
 </div>
 <div id="season" class="panel">
@@ -98,7 +99,7 @@ import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
 const qs=new URLSearchParams(location.search);
 const RUN=qs.get('run')||'paper', BASE=`runs/${RUN}/`, STREAM=qs.has('stream');
-let DEMO=qs.has('demo');
+const FORCE_DEMO=qs.has('demo');let DEMO=FORCE_DEMO;
 const $=id=>document.getElementById(id);
 if(STREAM){setTimeout(()=>$('help').style.display='none',8000);}
 const AUTO=qs.has('auto')||qs.has('shot');
@@ -431,7 +432,7 @@ function buildHolo(pos,cls,flag){
     const c=new THREE.Vector3();let k=0;for(let i=0;i<n;i++)if(flag[i]&bits){c.x+=pos[i*3];c.y+=pos[i*3+1];c.z+=pos[i*3+2];k++;}
     if(!k)return null;c.divideScalar(k).multiplyScalar(1.25);
     const el=document.createElement('div');el.className='hl';el.textContent=text;
-    Object.assign(el.style,{position:'fixed',fontSize:'.62rem',color:'#dff',textShadow:'0 0 .3rem #3ff0ff',pointerEvents:'none',whiteSpace:'nowrap',transform:'translate(-50%,-140%)'});
+    Object.assign(el.style,{position:'fixed',fontSize:'.62rem',color:'#dff',background:'rgba(5,10,25,.75)',border:'1px solid #2a3d6b',padding:'0 .3rem',lineHeight:'1.3',pointerEvents:'none',whiteSpace:'nowrap',transform:'translate(-50%,-140%)'});
     document.body.appendChild(el);return{c,el};}).filter(Boolean);
   applyView(false);
 }
@@ -509,7 +510,8 @@ function hud(){
   $('eq').textContent=fmt(e)+' USDC';$('pnl').textContent=(d>=0?'+':'')+fmt(d)+` (${(d/e0*100).toFixed(2)}%)`;$('pnl').className=d>=0?'up':'dn';
   const f=rows.filter(x=>x.execution.status==='FILLED');
   $('trades').innerHTML=`<span class="up">${f.filter(x=>x.neural.side==='BUY').length}</span> / <span class="dn">${f.filter(x=>x.neural.side==='SELL').length}</span>`;
-  $('syn').textContent=fmt(rows.reduce((a,x)=>a+(x.neural.memory?.changed_edges||0),0),0);
+  {const m=n.memory||{};$('syn').textContent=m.changed_edges!=null?fmt(m.changed_edges,0)+(m.plastic_edges?' из '+fmt(m.plastic_edges,0):''):'—';
+   $('eff').textContent=m.mean_efficacy!=null?(m.mean_efficacy*100).toFixed(1)+'%':'—';}
   $('lr').textContent=`${(+n.left_hz).toFixed(1)} / ${(+n.right_hz).toFixed(1)} Гц`;
   $('rate').textContent=(n.total_spikes/0.5/1000).toFixed(1)+' тыс';
   $('tick').innerHTML='<div class="t hd"><span>тик · время</span><span>решение</span><span>исполнение</span><span>стимул</span></div>'+rows.slice(-7).reverse().map(x=>`<div class="t"><span>#${x.tick} ${new Date(x.wall_time*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><span class="${x.neural.side}">${RU.side[x.neural.side]}</span><span>${RU.exec[x.execution.status]||x.execution.status}</span><span class="${x.neural.stimulus}">${RU.stim[x.neural.stimulus]}</span></div>`).join('');
@@ -580,32 +582,51 @@ function fakeRow(i,prev){const p=prev?mid(prev)+(Math.random()-.5)*60:64000,s=['
   const e=prev?+prev.equity_usdc+(Math.random()-.5)*.08:100,k=['none','none','reward','aversive'][Math.random()*4|0],st=s==='HOLD'?'HOLD':(Math.random()<.7?'FILLED':'VETO');
   return{tick:i,wall_time:Date.now()/1000,product:'BTC-USDC',quote:{bid:String(p),ask:String(p+1)},equity_usdc:String(e),
     neural:{side:s,left_hz:Math.random()*20,right_hz:Math.random()*20,difference_hz:(Math.random()-.5)*10,gate_spikes:Math.random()*8|0,KC_spikes:200+Math.random()*600|0,
-      reward_spikes:k==='reward'?40+Math.random()*60|0:Math.random()*4|0,aversive_spikes:k==='aversive'?10+Math.random()*20|0:0,total_spikes:300000+Math.random()*200000|0,stimulus:k,memory:{changed_edges:Math.random()*3000|0}},
+      reward_spikes:k==='reward'?40+Math.random()*60|0:Math.random()*4|0,aversive_spikes:k==='aversive'?10+Math.random()*20|0:0,total_spikes:300000+Math.random()*200000|0,stimulus:k,memory:{plastic_edges:7835,changed_edges:Math.min(7835,(prev?.neural.memory?.changed_edges||0)+(Math.random()*120|0)),mean_efficacy:Math.max(.5,(prev?.neural.memory?.mean_efficacy||1)-Math.random()*.002)}},
     execution:st==='FILLED'?{status:st,base:(10/p).toFixed(8),quote:'9.90'}:{status:st,...(st==='VETO'?{reason:'Order cooldown'}:{})}};}
 async function getJSON(u){const r=await fetch(u+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;return r.json();}
-let lastTick=null;
-function pushRow(r,{quiet=false}={}){rows.push(r);lastTick=r.tick;startReplay(r);if(!quiet&&!first)announce(r);}
+// only the fields the page uses (keeps memory flat even after weeks of ticks)
+function slim(r){const n=r.neural||{},m=n.memory||{},ex=r.execution||{},q=r.quote||{};
+  return{tick:r.tick,wall_time:r.wall_time,product:r.product,quote:{bid:q.bid,ask:q.ask},equity_usdc:r.equity_usdc,
+    neural:{side:n.side,left_hz:n.left_hz,right_hz:n.right_hz,difference_hz:n.difference_hz,gate_spikes:n.gate_spikes,KC_spikes:n.KC_spikes,
+      reward_spikes:n.reward_spikes,aversive_spikes:n.aversive_spikes,total_spikes:n.total_spikes,stimulus:n.stimulus,
+      memory:{changed_edges:m.changed_edges,plastic_edges:m.plastic_edges,mean_efficacy:m.mean_efficacy}},
+    execution:{status:ex.status,reason:ex.reason,base:ex.base,quote:ex.quote}};}
+function parseLines(text){const out=[];for(const l of text.split('\n')){if(!l.trim())continue;try{out.push(slim(JSON.parse(l)));}catch{}}return out;}
+let lastTick=null,hadReal=false,lostSince=0,busy=false,seasonSeen=null;
+function pushRow(r){rows.push(r);lastTick=r.tick;startReplay(r);if(!first)announce(r);}
 async function loadAll(){
-  const res=await fetch(BASE+'events.jsonl?t='+Date.now(),{cache:'no-store'});if(!res.ok)throw 0;
-  const lines=(await res.text()).trim().split('\n').filter(Boolean);
-  rows=lines.map(l=>JSON.parse(l));lastTick=rows.length?rows.at(-1).tick:null;
+  // compact history from the helper; fall back to the full journal
+  let res=await fetch(BASE+'history.jsonl?t='+Date.now(),{cache:'no-store'});
+  if(!res.ok)res=await fetch(BASE+'events.jsonl?t='+Date.now(),{cache:'no-store'});
+  if(!res.ok)throw 0;
+  rows=parseLines(await res.text());lastTick=rows.length?rows.at(-1).tick:null;
   if(rows.length){startReplay(rows.at(-1));if(!first)announce(rows.at(-1));}}
-async function poll(){
-  if(!DEMO){
+async function poll(){if(busy)return;busy=true;try{await pollOnce();}finally{busy=false;}}
+async function pollOnce(){
+  if(!FORCE_DEMO){
     try{
+      if(DEMO){lastTick=null;}                       // real data appeared: drop the demo
       if(lastTick===null)await loadAll();
       else{ // лёгкий опрос: один маленький файл вместо всей истории
-        let r=null;try{r=await getJSON(BASE+'latest.json');}catch{}
-        if(r&&r.tick!==lastTick){ if(r.tick===lastTick+1)pushRow(r); else await loadAll(); }
+        let r;try{r=slim(await getJSON(BASE+'latest.json'));}catch{r=null;if(!(await fetch(BASE+'history.jsonl',{method:'HEAD',cache:'no-store'}).then(x=>x.ok,()=>false)))throw 0;}
+        if(r&&r.tick!==lastTick){ if(r.tick>lastTick&&r.tick<=lastTick+3)pushRow(r); else await loadAll(); }
       }
-      first=false;
+      if(DEMO){DEMO=false;brainMeta=null;brainAct=null;}
+      hadReal=true;lostSince=0;first=false;
       try{runState=await getJSON('runs/status.json');}catch{runState={state:'running'};try{const er=await getJSON(BASE+'error.json');runState={state:/Loss stop/.test(er.reason)?'gameover':'restarting',reason:er.reason};}catch{}}
+      if(seasonSeen!==null&&runState.season!==seasonSeen)pastSeasons=null;seasonSeen=runState.season;
       const age=rows.length?Math.round(Date.now()/1000-rows.at(-1).wall_time):0, up=rows.length?Date.now()/1000-rows[0].wall_time:0;
       const season=runState.season&&runState.season>1?`сезон ${runState.season} · `:'';
       $('src').textContent=`${season}торгует ${dur(up)} · ${rows.length} решений · последнее ${age} с назад`+(runState.state==='restarting'?' · перезапуск…':'');
       overlay();seasonPanel();brainPoll();return;
-    }catch{DEMO=true;}
+    }catch{
+      if(hadReal){ // связь пропала (перезапуск, сон): держим последние данные, в демо не уходим
+        lostSince=lostSince||Date.now();const gone=Math.round((Date.now()-lostSince)/1000);
+        if(gone>6)$('src').textContent=`нет связи с мухой ${gone} с · жду…`;return;}
+    }
   }
+  DEMO=true;
   const r=fakeRow(rows.length,rows.at(-1));rows.push(r);if(rows.length>400)rows.shift();startReplay(r);if(!first)announce(r);first=false;
   $('src').textContent='ДЕМО: случайные данные (живая муха у автора на компьютере)';
   seasonPanel();brainPoll();
@@ -708,8 +729,11 @@ function animate(){
     const vis=v.z<1&&Math.abs(v.x)<1.1&&Math.abs(v.y)<1.1;cap.style.display=vis?'block':'none';
     if(vis){cap.style.left=((v.x+1)/2*innerWidth)+'px';cap.style.top=((1-v.y)/2*innerHeight)+'px';
       const capTxt=brainMeta?.demo?'ДЕМО-мозг':`${(brainMeta?.positioned||0).toLocaleString('ru-RU')} нейронов · активны ${brainAct?brainAct.active.toLocaleString('ru-RU'):'…'}`;if(cap.textContent!==capTxt)cap.textContent=capTxt;}
-    labels.forEach(l=>{const w=holoPts.localToWorld(l.c.clone()).project(camera);const ok=w.z<1&&Math.abs(w.x)<1&&Math.abs(w.y)<1;l.el.style.display=ok?'block':'none';
-      if(ok){l.el.style.left=((w.x+1)/2*innerWidth)+'px';l.el.style.top=((1-w.y)/2*innerHeight)+'px';}});}}
+    const LH=parseFloat(getComputedStyle(document.documentElement).fontSize)*.62*1.75,placed=[];
+    labels.map(l=>{const w=holoPts.localToWorld(l.c.clone()).project(camera);return{l,ok:w.z<1&&Math.abs(w.x)<1&&Math.abs(w.y)<1,x:(w.x+1)/2*innerWidth,y:(1-w.y)/2*innerHeight};})
+      .sort((a,b)=>a.y-b.y).forEach(p=>{p.l.el.style.display=p.ok?'block':'none';if(!p.ok)return;
+        for(const q of placed)if(Math.abs(p.x-q.x)<LH*9&&Math.abs(p.y-q.y)<LH)p.y=q.y+LH;   // сдвигаем вниз, пока не перестанет налезать
+        placed.push(p);p.l.el.style.left=p.x+'px';p.l.el.style.top=p.y+'px';});}}
   screenLight.intensity=6+Math.sin(t*3)*.4;
   if(AUTO)director(now,dt);else controls.update();
   camera.position.clamp(CAM_MIN,CAM_MAX);

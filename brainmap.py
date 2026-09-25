@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Помощник для 3D-страницы: живая карта мозга мухи.
+"""Помощник для 3D-страницы: живая карта мозга мухи и компактная история.
 
 Только читает. Один раз выгружает координаты тел нейронов (somaLocation из
 MaleCNS), затем после каждого тика берёт из свежего чекпоинта мозга
@@ -12,6 +12,9 @@ MaleCNS), затем после каждого тика берёт из свеж
   flag.bin  uint8   [N]    1=KC 2=PAM11 4=PPL101 8=DNp20 16=DNpe017
   act.bin   uint8   [N]    активность за последний тик, log1p(спайки)*64
   meta.json, act.json
+
+И runs/paper/history.jsonl: те же тики, что в events.jsonl, но только поля,
+нужные странице (примерно в 10 раз меньше). Страница грузит историю отсюда.
 """
 import json
 import os
@@ -89,10 +92,75 @@ def build():
     return idx
 
 
+NEURAL_KEEP = ["side", "left_hz", "right_hz", "difference_hz", "gate_spikes", "KC_spikes",
+               "reward_spikes", "aversive_spikes", "total_spikes", "stimulus"]
+
+
+def compact(r):
+    n = r.get("neural") or {}
+    m = n.get("memory") or {}
+    ex = r.get("execution") or {}
+    q = r.get("quote") or {}
+    return {
+        "tick": r.get("tick"), "wall_time": r.get("wall_time"), "product": r.get("product"),
+        "quote": {"bid": q.get("bid"), "ask": q.get("ask")}, "equity_usdc": r.get("equity_usdc"),
+        "neural": {**{k: n.get(k) for k in NEURAL_KEEP},
+                   "memory": {k: m.get(k) for k in ("changed_edges", "plastic_edges", "mean_efficacy")}},
+        "execution": {k: ex[k] for k in ("status", "reason", "base", "quote") if k in ex},
+    }
+
+
+class History:
+    """Инкрементально переписывает events.jsonl в компактный history.jsonl."""
+
+    def __init__(self):
+        self.src, self.dst = RUN / "events.jsonl", RUN / "history.jsonl"
+        self.ino, self.off = None, 0
+
+    def _lines(self, data):
+        out = []
+        for line in data.split(b"\n"):
+            if line.strip():
+                try:
+                    out.append(json.dumps(compact(json.loads(line)), separators=(",", ":")))
+                except Exception:
+                    pass
+        return out
+
+    def step(self):
+        if not self.src.exists():
+            return
+        st = self.src.stat()
+        with self.src.open("rb") as f:
+            if st.st_ino != self.ino or st.st_size < self.off:   # первый запуск или новый сезон
+                data = f.read()
+                end = data.rfind(b"\n") + 1
+                lines = self._lines(data[:end])
+                atomic(self.dst, ("\n".join(lines) + ("\n" if lines else "")).encode())
+                self.ino, self.off = st.st_ino, end
+                return
+            if st.st_size == self.off:
+                return
+            f.seek(self.off)
+            data = f.read()
+        end = data.rfind(b"\n") + 1          # недописанную строку оставляем на потом
+        if end:
+            lines = self._lines(data[:end])
+            if lines:
+                with self.dst.open("a") as h:
+                    h.write("\n".join(lines) + "\n")
+            self.off += end
+
+
 def main():
     idx = np.load(OUT / "idx.npy") if (OUT / "idx.npy").exists() and (OUT / "meta.json").exists() else build()
     last = None
+    hist = History()
     while True:
+        try:
+            hist.step()
+        except Exception as e:
+            print("history:", e, flush=True)
         cps = sorted(RUN.glob("brain-*.npz"), key=lambda q: q.stat().st_mtime)
         if cps:
             cp = cps[-1]

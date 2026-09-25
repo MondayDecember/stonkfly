@@ -45,7 +45,7 @@ P
   season)   ./new-season.sh ;;
   update)
     echo "Скачиваю обновления с GitHub…"
-    git pull --ff-only origin "$(git rev-parse --abbrev-ref HEAD)" || { echo "Не получилось, пришли вывод."; exit 1; }
+    git pull --ff-only origin main || { echo "Не получилось, пришли вывод."; exit 1; }
     sed -i 's/\r$//' ./*.sh stonkfly-cli ./*.py 2>/dev/null; chmod +x ./*.sh stonkfly-cli
     .venv/bin/pip install -q -e '.[test]'
     running && { "$0" restart; } || true
@@ -56,7 +56,7 @@ P
     SRC="/mnt/c/Users/$(winuser)/Downloads/stonkfly-kit"
     [ -d "$SRC" ] || { echo "Нет папки $SRC"; exit 1; }
     find "$SRC" -maxdepth 1 -type f ! -name stonkfly -exec cp {} . \; && sed -i 's/\r$//' ./*.sh stonkfly-cli ./*.py 2>/dev/null; chmod +x ./*.sh stonkfly-cli
-    git add -A -- ':!runs' ':!data' ':!.venv'
+    git add -- $(find "$SRC" -maxdepth 1 -type f ! -name stonkfly -printf '%f\n')
     git commit -qm "${2:-Update from stonkfly-kit}" && git push -q origin HEAD:main && echo "Отправлено на GitHub." || echo "Нечего отправлять или ошибка git."
     running && "$0" restart || true
     ;;

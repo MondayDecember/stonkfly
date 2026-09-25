@@ -3,8 +3,9 @@
 cd "$(dirname "$0")"
 if ! tmux has-session -t stonkfly 2>/dev/null; then
   tmux new-session -d -s stonkfly -n fly ./runner.sh
-  tmux new-window  -t stonkfly -n web "python3 -m http.server 8080 --bind 0.0.0.0"
-  tmux new-window  -t stonkfly -n brain ".venv/bin/python brainmap.py"
+  # помощники перезапускаются сами, если упадут
+  tmux new-window  -t stonkfly -n web   "while true; do python3 -m http.server 8080 --bind 0.0.0.0; echo 'сервер упал, перезапуск'; sleep 5; done"
+  tmux new-window  -t stonkfly -n brain "while true; do .venv/bin/python brainmap.py; echo 'карта мозга упала, перезапуск'; sleep 10; done"
   echo "Муха запущена."
 else
   echo "Уже работает."
@@ -17,5 +18,5 @@ cat <<T
   если localhost не открывается — http://$IP:8080/stonkfly-3d.html?stream=1
 
   смотреть логи:   tmux attach -t stonkfly   (выйти, не останавливая: Ctrl+B, затем D)
-  остановить:      ~/stonkfly/stop.sh
+  остановить:      stonkfly stop
 T
