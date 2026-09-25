@@ -32,6 +32,9 @@ canvas{display:block}
 #hud .row{display:flex;gap:.7rem;align-items:flex-end}
 #hud .big{font-size:1.8rem;margin-top:.3rem;white-space:nowrap}
 #hud .lbl{font-size:.7rem;color:#8595c0;margin-top:.25rem}
+#regions{margin-top:.45rem;display:grid;grid-template-columns:7.5rem 1fr 6.2rem;gap:.12rem .5rem;align-items:center;font-size:.7rem;color:#9fb3e8}
+#regions .bar{height:.45rem;background:#0b1430;border-radius:.2rem;overflow:hidden}#regions .bar i{display:block;height:100%;border-radius:.2rem;transition:width .6s}
+#regions b{font-weight:normal;color:#dfe8ff;text-align:right;font-variant-numeric:tabular-nums}
 #raster{width:12rem;height:4rem;border:1px solid #2a3d6b;background:#020510;image-rendering:pixelated}
 #ticker{right:1.5rem;bottom:1.3rem;width:30rem;font-size:.85rem}
 #ticker .h{color:#9fb3e8;font-size:.8rem;margin-bottom:.3rem}
@@ -58,7 +61,7 @@ canvas{display:block}
   <div class="row"><span>баланс</span><b id="eq">—</b></div>
   <div class="row"><span>прибыль</span><b id="pnl">—</b></div>
   <div class="row"><span>сделок</span><b id="trades">—</b></div>
-  <div class="row"><span>синапсов памяти изменено</span><b id="syn">—</b></div>
+  <div class="row"><span>память: изменено</span><b id="syn">—</b></div>
   <div class="row"><span>сила памяти</span><b id="eff">—</b></div>
   <div class="row"><span>DNp20 лев / прав</span><b id="lr">—</b></div>
 </div>
@@ -80,7 +83,8 @@ canvas{display:block}
     <div><div class="big" id="rate">—</div><div class="lbl">СПАЙКОВ В СЕКУНДУ</div></div>
     <canvas id="raster" width="224" height="96"></canvas>
   </div>
-  <div class="lbl">166 700 НЕЙРОНОВ · 25.6 МЛН СИНАПСОВ · MaleCNS v1.0</div>
+  <div id="regions"></div>
+  <div class="lbl">166 700 НЕЙРОНОВ · 25.6 МЛН СИНАПСОВ · MaleCNS v1.0 · % активных за тик</div>
 </div>
 <div id="ticker" class="panel"><div class="h">ПОСЛЕДНИЕ РЕШЕНИЯ</div><div id="tick"></div></div>
 <div id="toast"></div>
@@ -387,8 +391,8 @@ function miniFly(s=1){const g=new THREE.Group(),tanM=flat(0xb08c5c,{roughness:.5
   const head=new THREE.Group();head.position.set(.4,.06,0);body.add(head);
   head.add(new THREE.Mesh(new THREE.IcosahedronGeometry(.19,1),tanM));
   [.13,-.13].forEach(z=>{const e=new THREE.Mesh(new THREE.IcosahedronGeometry(.15,2),ey);e.scale.set(.8,1.1,.7);e.position.set(.04,.02,z);head.add(e);});
-  const wm=new THREE.MeshBasicMaterial({color:0xdde8ff,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false});
-  const wings=[1,-1].map(sd=>{const w=new THREE.Mesh(new THREE.CircleGeometry(.5,20),wm);w.scale.set(1.3,.42,1);w.geometry.translate(-.45,0,0);w.rotation.x=-Math.PI/2;
+  const wm=new THREE.MeshBasicMaterial({color:0xcfdcf5,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false});
+  const wings=[1,-1].map(sd=>{const w=new THREE.Mesh(new THREE.CircleGeometry(.5,20),wm);w.scale.set(1.0,.34,1);w.geometry.translate(-.45,0,0);w.rotation.x=-Math.PI/2;
     const pv=new THREE.Group();pv.position.set(-.02,.24,.08*sd);pv.add(w);pv.userData.sd=sd;body.add(pv);return pv;});
   const segG=new THREE.CylinderGeometry(.018,.014,1,5);segG.translate(0,-.5,0);
   const legs=[.15,0,-.15].flatMap((x,k)=>[1,-1].map(sd=>{const hip=new THREE.Group();hip.position.set(x,-.12,.1*sd);body.add(hip);
@@ -647,7 +651,7 @@ const holoMat=new THREE.ShaderMaterial({
       float tw=.75+.25*sin(uT*9.+position.x*61.+position.z*37.);
       float a=clamp(act*uFade*tw,0.,1.);
       float special=step(1.5,flag);
-      vec3 hot=mix(vec3(1.,.8,.45),vec3(1.),a);
+      vec3 hot=min(vec3(1.),base*2.2+.12);
       vC=mix(base,hot,a);vA=uBase+a*.9+special*.6;
       gl_PointSize=min(uMax,uSize*(1.+a*2.2+special*2.5)*uScale/-mv.z);gl_Position=projectionMatrix*mv;}`,
   fragmentShader:`varying vec3 vC;varying float vA;void main(){vec2 d=gl_PointCoord-.5;float r=dot(d,d);if(r>.25)discard;gl_FragColor=vec4(vC,vA*(1.-r*4.));}`,
@@ -655,12 +659,29 @@ const holoMat=new THREE.ShaderMaterial({
 const HOLO={y:2.45,rot:.12,scale:[1.25,1.25,1.25],center:0};let HOLO_POS=null;
 let holoPts=null,actArr=null,brainMeta=null,brainAct=null,brainFade=0,labels=[];
 const GROUP_COL={2:[1,.8,.3],4:[.8,.45,1],8:[.3,1,.7],16:[.3,1,.7]};
-function buildHolo(pos,cls,flag){
+// отделы мозга по суперклассу MaleCNS; клетки Кеньона выделены как «память»
+const REGIONS=[
+  {name:'зрение',      col:'#3fd0ff',test:c=>/optic|visual|^ol|photo/i.test(c)},
+  {name:'память',      col:'#b070ff',test:null},
+  {name:'центр мозга', col:'#5fe08e',test:c=>/central|^cb|intrinsic_brain|brain/i.test(c)},
+  {name:'команды телу',col:'#ffb040',test:c=>/descend/i.test(c)},
+  {name:'моторика',    col:'#ff5a5a',test:c=>/motor|efferent/i.test(c)},
+  {name:'чувства',     col:'#f0e060',test:c=>/sensory|ascend/i.test(c)},
+  {name:'брюшная цепь',col:'#5a7cff',test:c=>/vnc|ventral|neck|ann|leg|wing/i.test(c)},
+  {name:'прочие',      col:'#8a93b0',test:()=>true}];
+let REG=null,REG_TOT=null;
+function regionOfClass(name){for(let r=0;r<REGIONS.length;r++){const t=REGIONS[r].test;if(t&&t(name||''))return r;}return REGIONS.length-1;}
+function regionStats(){if(!REG||!actArr)return;const on=new Uint32Array(REGIONS.length);
+  for(let i=0;i<actArr.length;i++)if(actArr[i]>0)on[REG[i]]++;
+  REGIONS.forEach((r,k)=>{if(!REG_TOT[k])return;const p=on[k]/REG_TOT[k]*100;$('rb'+k).style.width=Math.min(100,p)+'%';$('rv'+k).textContent=`${p.toFixed(0)}% · ${fmt(on[k],0)}`;});}
+function buildHolo(pos,cls,flag,classes){
   const n=pos.length/3,geo=new THREE.BufferGeometry(),base=new Float32Array(n*3);actArr=new Float32Array(n);
-  for(let i=0;i<n;i++){const f=flag[i];let c;
-    if(f&2)c=GROUP_COL[2];else if(f&4)c=GROUP_COL[4];else if(f&24)c=GROUP_COL[8];
-    else if(f&1)c=[.55,.35,.9];else{const h=(.52+cls[i]*.045)%1,col=new THREE.Color().setHSL(h,.7,.45);c=[col.r,col.g,col.b];}
-    base.set([c[0]*.9,c[1]*.9,c[2]*.9],i*3);}
+  const map=(classes||[]).map(regionOfClass);REG=new Uint8Array(n);REG_TOT=new Uint32Array(REGIONS.length);
+  const RC=REGIONS.map(r=>new THREE.Color(r.col));
+  for(let i=0;i<n;i++){const f=flag[i];const r=f&1?1:(map[cls[i]]??REGIONS.length-1);REG[i]=r;REG_TOT[r]++;let c;
+    if(f&2)c=GROUP_COL[2];else if(f&4)c=GROUP_COL[4];else if(f&24)c=GROUP_COL[8];else c=[RC[r].r,RC[r].g,RC[r].b];
+    base.set([c[0]*.7,c[1]*.7,c[2]*.7],i*3);}
+  $('regions').innerHTML=REGIONS.map((r,k)=>REG_TOT[k]?`<span style="color:${r.col}">● ${r.name}</span><div class="bar"><i id="rb${k}" style="width:0;background:${r.col}"></i></div><b id="rv${k}">—</b>`:'').join('');
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('base',new THREE.BufferAttribute(base,3));
   geo.setAttribute('flag',new THREE.BufferAttribute(new Float32Array(flag),1));geo.setAttribute('act',new THREE.BufferAttribute(actArr,1));
   if(holoPts)holo.remove(holoPts);holoPts=new THREE.Points(geo,holoMat);holoPts.scale.set(...HOLO.scale);HOLO_POS=pos;
@@ -684,19 +705,19 @@ function demoBrain(){ // синтетический «мозг» для демо
     pos.set([x,y,z],i*3);}
   for(let i=0;i<600;i++){flag[i]=1;pos.set([(Math.random()-.5)*.3,.6+Math.random()*.1,(Math.random()-.5)*.2],i*3);}
   for(let i=600;i<615;i++)flag[i]=2;flag[615]=flag[616]=4;flag[617]=flag[618]=8;flag[619]=16;
-  buildHolo(pos,cls,flag);brainMeta={positioned:n,demo:true};}
+  buildHolo(pos,cls,flag,['central','optic','other','vnc_intrinsic']);brainMeta={positioned:n,demo:true};}
 let brainLoading=false;
 async function brainPoll(){
   if(!brainMeta&&!brainLoading){brainLoading=true;
     try{if(DEMO)throw 0;const [m,pb,cb,fb]=await Promise.all([getJSON('runs/brain/meta.json'),...['pos','cls','flag'].map(f=>fetch(`runs/brain/${f}.bin`).then(r=>{if(!r.ok)throw 0;return r.arrayBuffer();}))]);
-      buildHolo(new Float32Array(pb),new Uint8Array(cb),new Uint8Array(fb));brainMeta=m;}
+      buildHolo(new Float32Array(pb),new Uint8Array(cb),new Uint8Array(fb),m.classes);brainMeta=m;}
     catch{demoBrain();}}
   if(!holoPts)return;
-  if(brainMeta.demo){for(let i=0;i<actArr.length;i++)actArr[i]=Math.random()<.08?Math.random():0;holoPts.geometry.attributes.act.needsUpdate=true;brainFade=1;if(ENV.onBrain)ENV.onBrain();return;}
+  if(brainMeta.demo){for(let i=0;i<actArr.length;i++)actArr[i]=Math.random()<.08?Math.random():0;holoPts.geometry.attributes.act.needsUpdate=true;brainFade=1;regionStats();if(ENV.onBrain)ENV.onBrain();return;}
   try{const a=await getJSON('runs/brain/act.json');if(brainAct&&a.mtime===brainAct.mtime)return;
     const buf=new Uint8Array(await (await fetch('runs/brain/act.bin?t='+Date.now(),{cache:'no-store'})).arrayBuffer());
     if(buf.length!==actArr.length)return;for(let i=0;i<buf.length;i++)actArr[i]=buf[i]/255;
-    holoPts.geometry.attributes.act.needsUpdate=true;brainAct=a;brainFade=1;if(ENV.onBrain)ENV.onBrain();}catch{}
+    holoPts.geometry.attributes.act.needsUpdate=true;brainAct=a;brainFade=1;regionStats();if(ENV.onBrain)ENV.onBrain();}catch{}
 }
 
 if(LOC==='brain'){ // ======== BRAIN: внутри собственного мозга ========
