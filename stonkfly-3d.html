@@ -378,16 +378,38 @@ const ENV={update:null,onTick:null,onBrain:null};   // хуки локации: 
 let SCREEN='modern';
 function rboxG(w,h,d,mat,pos,parent=scene){const m=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,3,Math.min(w,h,d)*.18),mat);m.position.set(...pos);m.castShadow=m.receiveShadow=true;parent.add(m);return m;}
 function textTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;}
-// маленькая муха-статист (для соседей по бирже и мух над мусоркой)
-function miniFly(s=1){const g=new THREE.Group(),dk=flat(0x2a241e),ey=flat(0x9a1020,{emissive:0x300005});
-  const b=new THREE.Mesh(new THREE.IcosahedronGeometry(.5,1),dk);b.scale.set(1.5,.7,.8);g.add(b);
-  const th=new THREE.Mesh(new THREE.IcosahedronGeometry(.36,1),dk);th.position.x=.55;g.add(th);
-  const hd=new THREE.Mesh(new THREE.IcosahedronGeometry(.26,1),dk);hd.position.x=.95;g.add(hd);
-  [.17,-.17].forEach(z=>{const e=new THREE.Mesh(new THREE.IcosahedronGeometry(.16,1),ey);e.position.set(1.02,.05,z);g.add(e);});
-  const wm=new THREE.MeshBasicMaterial({color:0xcfe0ff,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false});
-  g.userData.wings=[1,-1].map(sd=>{const w=new THREE.Mesh(new THREE.PlaneGeometry(1.3,.45),wm);w.geometry.translate(-.55,0,0);w.rotation.x=-Math.PI/2;
-    const pv=new THREE.Group();pv.position.set(.4,.3,.12*sd);pv.add(w);pv.userData.sd=sd;g.add(pv);return pv;});
+// маленькая муха-статист: полосатая дрозофила с лапками, умеет жить (см. liveFly)
+function miniFly(s=1){const g=new THREE.Group(),tanM=flat(0xb08c5c,{roughness:.55}),bandM=flat(0x2e2218),legM=flat(0x6a5238),ey=flat(0xa30f1d,{emissive:0x3a0006,roughness:.3});
+  const body=new THREE.Group();body.position.y=.38;g.add(body);
+  const th=new THREE.Mesh(new THREE.IcosahedronGeometry(.3,1),tanM);th.scale.set(1.15,.9,.9);body.add(th);
+  [[-.34,.27],[-.56,.26],[-.76,.2],[-.9,.13]].forEach(([x,r],i)=>{const m=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),tanM);m.scale.set(.62,.9,1);m.position.x=x;body.add(m);
+    if(i){const bnd=new THREE.Mesh(new THREE.IcosahedronGeometry(r*1.01,1),bandM);bnd.scale.set(.25,.92,1.02);bnd.position.x=x-r*.28;body.add(bnd);}});
+  const head=new THREE.Group();head.position.set(.4,.06,0);body.add(head);
+  head.add(new THREE.Mesh(new THREE.IcosahedronGeometry(.19,1),tanM));
+  [.13,-.13].forEach(z=>{const e=new THREE.Mesh(new THREE.IcosahedronGeometry(.15,2),ey);e.scale.set(.8,1.1,.7);e.position.set(.04,.02,z);head.add(e);});
+  const wm=new THREE.MeshBasicMaterial({color:0xdde8ff,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false});
+  const wings=[1,-1].map(sd=>{const w=new THREE.Mesh(new THREE.CircleGeometry(.5,20),wm);w.scale.set(1.3,.42,1);w.geometry.translate(-.45,0,0);w.rotation.x=-Math.PI/2;
+    const pv=new THREE.Group();pv.position.set(-.02,.24,.08*sd);pv.add(w);pv.userData.sd=sd;body.add(pv);return pv;});
+  const segG=new THREE.CylinderGeometry(.018,.014,1,5);segG.translate(0,-.5,0);
+  const legs=[.15,0,-.15].flatMap((x,k)=>[1,-1].map(sd=>{const hip=new THREE.Group();hip.position.set(x,-.12,.1*sd);body.add(hip);
+    const fem=new THREE.Mesh(segG,legM);fem.scale.y=.3;hip.add(fem);hip.rotation.set(sd*-1.1,0,(k-1)*-.35);
+    const knee=new THREE.Group();knee.position.y=-.3;hip.add(knee);const tib=new THREE.Mesh(segG,legM);tib.scale.y=.4;knee.add(tib);knee.rotation.x=sd*1.5;
+    return{hip,knee,sd,k,rx:hip.rotation.x,kx:knee.rotation.x};}));
+  g.userData={body,head,wings,legs,ph:Math.random()*6,buzz:0,hop:1,groom:0,look:0,next:1+Math.random()*4,baseY:0};
   g.scale.setScalar(s);return g;}
+// поведение мухи-статиста: осматривается, чистит лапки, жужжит, подпрыгивает
+function liveFly(f,t,dt,flying=false){const u=f.userData;
+  if(!flying&&t>u.next){const r=Math.random();if(r<.35)u.look=(Math.random()-.5)*1.4;else if(r<.6)u.groom=1;else if(r<.85)u.buzz=1;else u.hop=0;u.next=t+2+Math.random()*5;}
+  u.buzz=flying?1:Math.max(0,u.buzz-dt*.8);u.groom=Math.max(0,u.groom-dt*.35);
+  if(u.hop<1){u.hop=Math.min(1,u.hop+dt*1.6);u.buzz=Math.max(u.buzz,.8);}
+  if(!flying)f.position.y=u.baseY+Math.sin(u.hop*Math.PI)*.55*(u.hop<1?1:0);
+  u.body.position.y=.38+Math.sin(t*1.6+u.ph)*.012;u.body.rotation.z=u.hop<1?Math.sin(u.hop*Math.PI)*.25:0;
+  u.head.rotation.y+=((u.look+Math.sin(t*.5+u.ph)*.15)-u.head.rotation.y)*Math.min(1,dt*3);
+  u.wings.forEach(w=>{const sd=w.userData.sd;w.rotation.set(sd*(.1+u.buzz*(.6+Math.sin(t*70+u.ph)*.5)),sd*(-.1+u.buzz*.6),.08);});
+  const gr=Math.sin(u.groom*Math.PI);u.legs.forEach(l=>{const tw=Math.sin(t*3+l.k+u.ph)*.03;
+    if(l.k===0&&gr>0){l.hip.rotation.x=l.rx*(1-gr)+(-l.sd*.2)*gr;l.hip.rotation.z=-.35-gr*1.2;l.knee.rotation.x=l.kx*(1-gr)+l.sd*2.2*gr+Math.sin(t*14+l.sd)*.3*gr;}
+    else{l.hip.rotation.x=l.rx+tw;l.hip.rotation.z=(l.k-1)*-.35;l.knee.rotation.x=l.kx;}
+    if(flying){l.hip.rotation.x=l.rx*.4;l.knee.rotation.x=l.kx*.3;}});}
 
 if(LOC==='floor'){ // ======== FLOOR: торговый зал биржи, 80-е ========
 scene.background.set(0x1a120c);scene.fog=new THREE.Fog(0x1a120c,22,60);
@@ -429,7 +451,8 @@ function drawTicker(){const g=tickC.getContext('2d');g.fillStyle='#070402';g.fil
   if(r){const m=mid(r),p=rows.length>1?mid(rows.at(-2)):m,d=m-p;
     txt=`BTC-USDC ${fmt(m)} ${d>=0?'▲':'▼'}${fmt(Math.abs(d))}   ◆   МУХА: ${RU.side[r.neural.side]}   ◆   БАЛАНС ${fmt(+r.equity_usdc)} USDC   ◆   ${RU.stim[r.neural.stimulus]==='·'?'ТИК #'+r.tick:RU.stim[r.neural.stimulus].toUpperCase()}   ◆   `;}
   g.font='bold 64px monospace';g.fillStyle='#ffb020';g.shadowColor='#ff8a00';g.shadowBlur=12;
-  let x=0;const w=g.measureText(txt).width;while(x<2048){g.fillText(txt,x,70);x+=w;}
+  const w=g.measureText(txt).width,n=Math.max(1,Math.round(2048/w));   // ровно n повторов на ширину, чтобы не было шва
+  g.save();g.scale(2048/(n*w),1);for(let k=0;k<n;k++)g.fillText(txt,k*w,70);g.restore();
   g.shadowBlur=0;g.fillStyle='rgba(0,0,0,.55)';for(let y=0;y<96;y+=4)g.fillRect(0,y,2048,1);for(let xx=0;xx<2048;xx+=4)g.fillRect(xx,0,1,96);
   tickT.needsUpdate=true;}
 setTimeout(drawTicker,0);   // после загрузки всего модуля
@@ -440,9 +463,13 @@ const CLOCKS=[['НЬЮ-ЙОРК',-4],['ЛОНДОН',1],['ТОКИО',9],['ТО�
   const rim=new THREE.Mesh(new THREE.TorusGeometry(.92,.07,8,40),std(0xc9a64a,{metalness:.9,roughness:.3}));g.add(rim);
   for(let k=0;k<12;k++){const t=new THREE.Mesh(new THREE.BoxGeometry(.04,.14,.02),std(0x222222));const a=k/12*Math.PI*2;t.position.set(Math.sin(a)*.76,Math.cos(a)*.76,.02);t.rotation.z=-a;g.add(t);}
   const hand=(L,w)=>{const pv=new THREE.Group();pv.position.z=.04;const m=new THREE.Mesh(new THREE.BoxGeometry(w,L,.02),std(0x111111));m.position.y=L/2-.05;pv.add(m);g.add(pv);return pv;};
-  const hh=hand(.48,.07),mh=hand(.72,.045);
+  const hh=hand(.48,.07),mh=hand(.72,.045),sh=hand(.8,.018);sh.children[0].material=std(0xd02020);
+  const hub=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.04,12),std(0xd02020));hub.rotation.x=Math.PI/2;hub.position.z=.07;g.add(hub);
   const lab=new THREE.Mesh(new THREE.PlaneGeometry(2,.4),new THREE.MeshBasicMaterial({transparent:true,map:textTex(256,52,(c,w,h)=>{c.font='bold 30px monospace';c.fillStyle='#e8d2a0';c.textAlign='center';c.fillText(name,w/2,36);})}));
-  lab.position.y=-1.35;g.add(lab);return{off,hh,mh};});
+  lab.position.y=-1.3;g.add(lab);
+  const dc=document.createElement('canvas');dc.width=256;dc.height=64;const dt=new THREE.CanvasTexture(dc);dt.colorSpace=THREE.SRGBColorSpace;
+  const dig=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.38),new THREE.MeshBasicMaterial({map:dt,toneMapped:false}));dig.position.y=-1.75;g.add(dig);
+  return{off,hh,mh,sh,dc,dt,last:''};});
 // ряды столов с ЭЛТ-мониторами и мухами-соседями
 const deskMs=[],crtMs=[],scrMs=[],NEIGH=[];
 [[-12,0],[12,0],[-12,-6.5],[0,-8],[12,-6.5],[-6,-12],[6,-12],[-12,7],[12,7]].forEach(([x,z],i)=>{
@@ -450,19 +477,24 @@ const deskMs=[],crtMs=[],scrMs=[],NEIGH=[];
   deskMs.push(box(6,.18,2.6,wood,[0,0,0],g),box(6,1.55,.1,std(0x3e2414),[0,-.85,1.25],g));
   [-1.4,1.4].forEach(cx=>{crtMs.push(box(1.5,1.3,1.3,std(0xd6cdb4),[cx,.75,-.6],g));
     const sc=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.85),new THREE.MeshBasicMaterial({color:new THREE.Color().setHSL(.33,.9,.2+Math.random()*.15)}));sc.position.set(cx,.78,.06);sc.material.color.multiplyScalar(.75);g.add(sc);scrMs.push(sc);});
-  if(i%3!==2){const f=miniFly(.8);f.position.set(-.2,.55,.4);f.rotation.y=Math.PI/2+(Math.random()-.5)*.6;g.add(f);NEIGH.push(f);}
+  [-1.4,1.4].forEach((cx,j)=>{if((i+j)%3===2)return;const f=miniFly(1.05);f.position.set(cx+(Math.random()-.5)*.3,.09,.45);f.userData.baseY=.09;f.rotation.y=Math.PI/2+(Math.random()-.5)*.5;g.add(f);NEIGH.push(f);});
 });
 // бумажки-«тикеты»: разлетаются при исполненной сделке
 const PAPER=260,pp=new Float32Array(PAPER*3),pv=new Float32Array(PAPER*3);for(let i=0;i<PAPER;i++)pp[i*3+1]=-99;
 const paperGeo=new THREE.BufferGeometry();paperGeo.setAttribute('position',new THREE.BufferAttribute(pp,3));
 scene.add(new THREE.Points(paperGeo,new THREE.PointsMaterial({color:0xf5efdc,size:.12})));
 let paperNext=0;
-ENV.onTick=r=>{drawTicker();if(r.execution.status==='FILLED')for(let k=0;k<90;k++){const i=paperNext++%PAPER;
+ENV.onTick=r=>{drawTicker();
+  if(r.neural.side!=='HOLD')NEIGH.forEach(f=>{f.userData.buzz=1;if(Math.random()<.5)f.userData.hop=0;f.userData.look=(Math.random()-.5)*1.6;});   // соседи оживляются от нашей сделки
+  if(r.execution.status==='FILLED')for(let k=0;k<90;k++){const i=paperNext++%PAPER;
   pp.set([(Math.random()-.5)*16,8+Math.random()*1.5,(Math.random()-.5)*14],i*3);pv.set([(Math.random()-.5)*.6,-.4-Math.random()*.6,(Math.random()-.5)*.6],i*3);}};
 ENV.update=(t,dt)=>{
   tickT.offset.x=(tickT.offset.x+dt*.05)%1;
-  const now=new Date();CLOCKS.forEach(c=>{const h=(now.getUTCHours()+c.off+24)%24+now.getUTCMinutes()/60,m=now.getUTCMinutes()+now.getUTCSeconds()/60;c.hh.rotation.z=-h/12*Math.PI*2;c.mh.rotation.z=-m/60*Math.PI*2;});
-  NEIGH.forEach((f,i)=>{f.position.y=.55+Math.sin(t*1.3+i)*.03;f.userData.wings.forEach(w=>w.rotation.x=w.userData.sd*(.15+Math.sin(t*2+i)*.05));});
+  const now=new Date();CLOCKS.forEach(c=>{const H=(now.getUTCHours()+c.off+24)%24,h=H+now.getUTCMinutes()/60,m=now.getUTCMinutes()+now.getUTCSeconds()/60,sec=now.getUTCSeconds();
+    c.hh.rotation.z=-h/12*Math.PI*2;c.mh.rotation.z=-m/60*Math.PI*2;c.sh.rotation.z=-sec/60*Math.PI*2;
+    const txt=String(H).padStart(2,'0')+':'+String(now.getUTCMinutes()).padStart(2,'0');
+    if(txt!==c.last){c.last=txt;const g=c.dc.getContext('2d');g.fillStyle='#0a0604';g.fillRect(0,0,256,64);g.font='bold 48px monospace';g.textAlign='center';g.fillStyle='#ff3020';g.shadowColor='#ff2000';g.shadowBlur=10;g.fillText(txt,128,50);c.dt.needsUpdate=true;}});
+  NEIGH.forEach(f=>liveFly(f,t,dt));
   let any=false;for(let i=0;i<PAPER;i++){if(pp[i*3+1]<-50)continue;any=true;pp[i*3]+=pv[i*3]*dt+Math.sin(t*3+i)*dt*.3;pp[i*3+1]+=pv[i*3+1]*dt;pp[i*3+2]+=pv[i*3+2]*dt;if(pp[i*3+1]<FY0+.02){pp[i*3+1]=FY0+.02;pv.set([0,0,0],i*3);}}
   if(any)paperGeo.attributes.position.needsUpdate=true;};
 // наш монитор становится бежевым ЭЛТ на подставке
@@ -514,7 +546,7 @@ mon.children[0].material=std(0x9c7446,{map:cardTex,roughness:.95});mount.visible
 // у клавиатуры не хватает клавиш
 [3,9,16,27,33,41].forEach(i=>{const o=keys[i];o.scale.setScalar(0);o.updateMatrix();keyIM.setMatrixAt(i,o.matrix);});keyIM.instanceMatrix.needsUpdate=true;
 // мухи-соседи кружат над мусоркой
-const FLIES=[0,1,2,3,4].map(i=>{const f=miniFly(.45);scene.add(f);return{f,r:rnd(3,6.5),h:rnd(4,9),sp:rnd(.25,.5)*(i%2?1:-1),ph:rnd(0,6)};});
+const FLIES=[0,1,2,3,4].map(i=>{const f=miniFly(.7);scene.add(f);return{f,r:rnd(3,6.5),h:rnd(4,9),sp:rnd(.25,.5)*(i%2?1:-1),ph:rnd(0,6)};});
 // бумажные комки падают сверху на «наказание»
 const BALLS=[];let ballNext=0;
 ENV.onTick=r=>{if(r.neural.stimulus!=='aversive')return;
@@ -522,7 +554,7 @@ ENV.onTick=r=>{if(r.neural.stimulus!=='aversive')return;
   const a=Math.random()*Math.PI*2,rr=rnd(3.5,7);b.m.position.set(Math.cos(a)*rr,BY0+15,Math.sin(a)*rr);b.v=0;b.land=heapY(b.m.position.x,b.m.position.z)+.4;};
 ENV.update=(t,dt)=>{
   FLIES.forEach(o=>{const a=t*o.sp+o.ph;o.f.position.set(Math.cos(a)*o.r,o.h+Math.sin(t*1.7+o.ph)*.6,Math.sin(a)*o.r);o.f.rotation.y=-a-(o.sp>0?Math.PI/2:-Math.PI/2);
-    o.f.userData.wings.forEach(w=>w.rotation.x=w.userData.sd*(.3+Math.sin(t*60+o.ph)*.5));});
+    liveFly(o.f,t,dt,true);});
   BALLS.forEach(b=>{if(b.m.position.y>b.land){b.v+=dt*14;b.m.position.y=Math.max(b.land,b.m.position.y-b.v*dt);b.m.rotation.x+=dt*3;}});};
 } // ======== /TRASH ========
 
