@@ -11,7 +11,7 @@ canvas{display:block}
 .panel{position:fixed;background:rgba(5,10,25,.8);border:1px solid #2a3d6b;box-shadow:0 0 1.2rem rgba(80,140,255,.22);padding:.7rem .9rem}
 #title{position:fixed;left:1.5rem;top:1.3rem}
 #title .n{font-size:2.1rem;letter-spacing:.14em;text-shadow:0 0 .8rem #6af}
-#title .m{font-size:.8rem;color:#8595c0;margin-top:.2rem}
+#title .m{font-size:.8rem;color:#c8d4f0;margin-top:.2rem;background:rgba(5,10,25,.72);border:1px solid #2a3d6b;padding:.2rem .55rem;display:inline-block}
 #live{display:none;margin-left:.8rem;vertical-align:middle;background:#e0213b;color:#fff;font-size:.85rem;padding:.15rem .5rem;letter-spacing:.1em;border-radius:.2rem}
 #live i{display:inline-block;width:.55rem;height:.55rem;border-radius:50%;background:#fff;margin-right:.35rem;animation:bl 1.2s infinite}
 @keyframes bl{50%{opacity:.2}}
@@ -57,13 +57,16 @@ canvas{display:block}
 #preach .row{display:flex;justify-content:space-between;gap:.8rem;font-size:.85rem;margin-top:.25rem;color:#9fb3e8}#preach .row b{color:#e8eeff;font-weight:normal;text-align:right}
 #flock{right:1.5rem;bottom:1.3rem;width:30rem;font-size:.85rem;display:none}#flock .h{display:flex;justify-content:space-between;color:#9fb3e8;font-size:.8rem;margin-bottom:.3rem}
 #flock div.t{display:grid;grid-template-columns:3.5rem 7rem 1fr;padding:.12rem 0;border-bottom:1px solid #16213f}#flock .nm{color:#ffd66a}
+.bub{position:fixed;display:none;max-width:17rem;background:#fffdf4;color:#2a2018;font-size:.95rem;line-height:1.3;padding:.5rem .75rem;border-radius:1rem;border:2px solid #6a5a40;transform:translate(-50%,-100%);pointer-events:none;box-shadow:0 .3rem 1rem rgba(0,0,0,.4)}
+.bub:after{content:'';position:absolute;left:50%;bottom:-.7rem;border:.6rem solid transparent;border-top-color:#6a5a40;transform:translateX(-50%)}
+.bub b{display:block;font-size:.7rem;color:#8a6a40;letter-spacing:.08em}
 #toast{position:fixed;left:50%;top:20%;transform:translate(-50%,-50%) scale(.8);font-size:3.4rem;letter-spacing:.12em;opacity:0;transition:all .35s;text-align:center;pointer-events:none}
 #toast small{display:block;font-size:1.1rem;letter-spacing:.05em;color:#dfe8ff;margin-top:.3rem}
 #toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
 #over{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(5,5,15,.7);font-size:5rem;letter-spacing:.2em;color:#ff5470;text-shadow:0 0 1.5rem #ff5470}
 #over small{font-size:1.2rem;color:#dfe8ff;letter-spacing:.05em;text-shadow:none;margin-top:1rem}
 #disc{position:fixed;left:50%;bottom:.4rem;transform:translateX(-50%);font-size:.7rem;color:#56618a;white-space:nowrap}
-#help{position:fixed;left:50%;top:1rem;transform:translateX(-50%);font-size:.75rem;color:#56618a}
+#help{position:fixed;left:50%;top:1rem;transform:translateX(-50%);font-size:.75rem;color:#c8d4f0;background:rgba(5,10,25,.72);padding:.2rem .55rem}
 .BUY{color:#3dff9a;text-shadow:0 0 .6rem #3dff9a}.SELL{color:#ff5470;text-shadow:0 0 .6rem #ff5470}.HOLD{color:#9aa6c8}
 .reward{color:#ffd06a}.aversive{color:#c86bff}
 .up{color:#3dff9a}.dn{color:#ff5470}
@@ -116,6 +119,7 @@ canvas{display:block}
   <div class="row"><span>DNp20 лев / прав</span><b id="prLR">—</b></div><div class="row"><span>сказано проповедей</span><b id="prSaid">0</b></div>
   <div class="row"><span>слушателей</span><b>40</b></div></div>
 <div id="flock" class="panel"><div class="h"><span>ПАСТВА ВНИМАЕТ</span><span>вдохновлено: <b id="fkN">0</b></span></div><div id="fkList"></div></div>
+<div id="momBub" class="bub"></div><div id="sonBub" class="bub"></div>
 <div id="toast"></div>
 <div id="fps" style="position:fixed;right:1.5rem;top:12rem;font-size:.8rem;color:#3dff9a;background:rgba(0,0,0,.6);padding:.2rem .5rem;display:none"></div>
 <button id="snd" style="position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);font:inherit;font-size:1rem;color:#dfe8ff;background:rgba(5,10,25,.9);border:1px solid #5cf;padding:.5rem 1rem;cursor:pointer;display:none">🔊 включить звук</button>
@@ -208,7 +212,7 @@ const DESK_Y=.09;
 
 // ================= apartment =================
 const RX0=-8,RX1=8.5,RZ0=-3.2,RZ1=11,RY0=-1.6,RY1=5.4;
-let rainGeo=null,RAIN=0,rings=[],posterMat=null;
+let rainGeo=null,RAIN=0,rings=[],posterMat=null,doorPivot=null;
 function canvasTex(w,h,draw,rep=[1,1]){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(...rep);t.anisotropy=8;return t;}
 const std=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.85,...o});
 function plane(w,h,mat,pos,rot){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);m.position.set(...pos);m.rotation.set(...rot);m.receiveShadow=true;scene.add(m);return m;}
@@ -319,8 +323,9 @@ const posterTex=canvasTex(256,340,(g,w,h)=>{g.fillStyle='#0b0f24';g.fillRect(0,0
   g.fillStyle='#ffd06a';g.font='bold 25px monospace';g.textAlign='center';g.fillText('КУПИ ДОРОГО',w/2,285);g.fillText('ПРОДАЙ ДЁШЕВО',w/2,316);});
 posterMat=std(0xffffff,{map:posterTex,roughness:.5});plane(2.2,2.9,posterMat,[RX1-.02,2.4,1.2],[0,-Math.PI/2,0]);
 // door on left wall
-const door=box(.08,3.8,1.9,std(0x2e2a3a),[RX0+.05,RY0+1.9,7.5]);
-box(.12,.12,.12,std(0xc9a64a,{metalness:.9,roughness:.3}),[RX0+.12,RY0+1.8,6.85]);
+doorPivot=new THREE.Group();doorPivot.position.set(RX0+.05,RY0,8.45);scene.add(doorPivot);
+box(.08,3.8,1.9,std(0x2e2a3a),[0,1.9,-.95],doorPivot);box(.12,.12,.12,std(0xc9a64a,{metalness:.9,roughness:.3}),[.07,1.8,-1.6],doorPivot);
+plane(1.85,3.75,new THREE.MeshBasicMaterial({color:0xffd9a0}),[RX0+.015,RY0+1.9,7.5],[0,Math.PI/2,0]);   // свет из коридора
 // city outside the window
 function windowTex(){const c=document.createElement('canvas');c.width=64;c.height=128;const g=c.getContext('2d');
   g.fillStyle='#0a0e22';g.fillRect(0,0,64,128);
@@ -410,7 +415,7 @@ rings=[.55,-.55].map(y=>{const r=new THREE.Mesh(new THREE.TorusGeometry(.36,.035
 }
 
 // ================= shared location plumbing =================
-const ENV={update:null,onTick:null,onBrain:null,redraw:null,gesture:null,afterFly:null};let EXTRA_TAP=0;   // хуки локации: каждый кадр / новый тик / новая активность мозга
+let DISTRACT=0;const ENV={headYaw:0,update:null,onTick:null,onBrain:null,redraw:null,gesture:null,afterFly:null};let EXTRA_TAP=0;   // хуки локации: каждый кадр / новый тик / новая активность мозга
 let SCREEN='modern';
 function rboxG(w,h,d,mat,pos,parent=scene){const m=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,3,Math.min(w,h,d)*.18),mat);m.position.set(...pos);m.castShadow=m.receiveShadow=true;parent.add(m);return m;}
 function textTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;}
@@ -752,6 +757,40 @@ ENV.update=(t,dt)=>{const now=performance.now();
   if(ENV.rays)ENV.rays.forEach((r,i)=>r.material.opacity=.022+Math.sin(t*.4+i)*.01);};
 } // ======== /MOUNT ========
 
+if(LOC==='room'&&MODE==='flappy'&&doorPivot&&qs.get('mom')!=='0'){ // ======== МАМА-МУХА заходит в комнату ========
+const mom=miniFly(1.8);mom.visible=false;scene.add(mom);
+{const u=mom.userData,hd=u.head;   // платочек в горошек и фартук
+ const dots=canvasTex(128,64,(g,w,h)=>{g.fillStyle='#d9385a';g.fillRect(0,0,w,h);g.fillStyle='#fff';for(let y=6;y<h;y+=14)for(let x=(y/14%2)*7;x<w;x+=14){g.beginPath();g.arc(x,y,3,0,7);g.fill();}});
+ const scarf=new THREE.Mesh(new THREE.SphereGeometry(.215,16,10,0,Math.PI*2,0,Math.PI*.6),new THREE.MeshStandardMaterial({map:dots,roughness:.9,side:THREE.DoubleSide}));scarf.position.set(-.03,.03,0);scarf.rotation.z=.35;hd.add(scarf);
+ const knot=new THREE.Mesh(new THREE.ConeGeometry(.07,.16,6),new THREE.MeshStandardMaterial({map:dots}));knot.position.set(-.12,-.14,0);knot.rotation.z=2.4;hd.add(knot);
+ const apron=new THREE.Mesh(new THREE.SphereGeometry(.31,16,10,Math.PI*.55,Math.PI*.9,Math.PI*.35,Math.PI*.5),new THREE.MeshStandardMaterial({color:0xf4e6ea,roughness:.9,side:THREE.DoubleSide}));
+ apron.scale.set(1.2,.95,1.02);apron.position.set(-.05,-.02,0);apron.rotation.y=-Math.PI/2;u.body.add(apron);}
+const MOM_SAY=['Сынок, иди кушать, всё остынет!','Опять ты в свои игры играешь?','Ты уроки сделал?','Выключай компьютер, спать пора!','Я варенье сварила, иди попробуй!',
+  'Мусор вынеси, пожалуйста!','Бабушке позвонить не забудь!','Не сиди так близко к монитору, глаза испортишь!','Форточку закрой, сквозняк!','Опять крошки на столе оставил?'];
+const SON_SAY=['Ну мам, ещё одну попытку!','Щас, мам!','Я не играю, я учусь! У меня синапсы меняются!','Мам, ну пять минут!','Ага, иду-иду…','Мам, не отвлекай, тут труба!'];
+const FAST=qs.get('mom')==='fast';let st='idle',st0=performance.now(),next=performance.now()+(FAST?6000:30000),talkKind=null,crashed=false;
+const DOOR_IN=new THREE.Vector3(RX0-.6,.6,7.5),DOOR_OUT=new THREE.Vector3(RX0+1.6,1.1,7.2),SPOT=new THREE.Vector3(-3.4,1.45,.4);
+function bez(a,b,c,k){const u=1-k;return a.clone().multiplyScalar(u*u).add(b.clone().multiplyScalar(2*u*k)).add(c.clone().multiplyScalar(k*k));}
+function bub(id,html,obj,up){const el=$(id);if(!html){el.style.display='none';return;}el.innerHTML=html;const p=obj.getWorldPosition(new THREE.Vector3());p.y+=up;p.project(camera);
+  const ok=p.z<1&&Math.abs(p.x)<1.1&&Math.abs(p.y)<1.1;el.style.display=ok?'block':'none';if(ok){el.style.left=((p.x+1)/2*innerWidth)+'px';el.style.top=((1-p.y)/2*innerHeight)+'px';}}
+window.MOM_EVENT=kind=>{if(st==='talk'&&kind==='crash')crashed=true;};
+const easeDoor=k=>-1.35*Math.sin(Math.min(1,Math.max(0,k))*Math.PI/2);
+let momLine='',sonLine='';
+ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000,u=mom.userData;
+  if(st==='idle'&&now>next){st='door';st0=now;momLine=MOM_SAY[Math.random()*MOM_SAY.length|0];sonLine=SON_SAY[Math.random()*SON_SAY.length|0];crashed=false;play('creak');}
+  if(st==='door'){doorPivot.rotation.y=easeDoor(e/1.2);if(e>1.2){st='enter';st0=now;mom.visible=true;}}
+  else if(st==='enter'){const k=Math.min(1,e/3);mom.position.copy(bez(DOOR_IN,DOOR_OUT,SPOT,k));mom.lookAt(fly.position.x,mom.position.y,fly.position.z);mom.rotateY(-Math.PI/2);liveFly(mom,t,dt,true);if(k>=1){st='talk';st0=now;}}
+  else if(st==='talk'){liveFly(mom,t,dt,e>7.5);mom.position.y=SPOT.y+Math.sin(t*2)*.05;u.buzz=Math.max(u.buzz,.6);
+    DISTRACT=1;ENV.headYaw=Math.min(.9,e*1.5);
+    bub('momBub',e<8?'<b>МАМА</b>'+momLine:'',u.head,.55);
+    bub('sonBub',e>3.2&&e<8?'<b>МУХА</b>'+(crashed?'Мам! Я из-за тебя разбился!':sonLine):'',head,.5);
+    if(e>8.2){st='leave';st0=now;$('momBub').style.display=$('sonBub').style.display='none';}}
+  else if(st==='leave'){const k=Math.min(1,e/3);mom.position.copy(bez(SPOT,DOOR_OUT,DOOR_IN,k));mom.lookAt(DOOR_IN.x,mom.position.y,DOOR_IN.z);mom.rotateY(-Math.PI/2);liveFly(mom,t,dt,true);
+    DISTRACT=0;ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);if(k>=1){st='close';st0=now;mom.visible=false;}}
+  else if(st==='close'){doorPivot.rotation.y=easeDoor(1-e/1.2);ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);
+    if(e>1.2){doorPivot.rotation.y=0;st='idle';st0=now;next=now+(FAST?20000:(150+Math.random()*150)*1000);}}};
+} // ======== /МАМА ========
+
 // ================= the fly (Drosophila) =================
 const fly=new THREE.Group();fly.position.set(-.55,.78,-.05);fly.rotation.y=.32;scene.add(fly);
 const body=new THREE.Group();fly.add(body);
@@ -985,10 +1024,10 @@ function flappyState(s){
   if(FL.cur)FL.interval=Math.min(4000,Math.max(300,(performance.now()-FL.tRecv)*.7+FL.interval*.3));FL.cur=s;FL.tRecv=performance.now();
   $('flsc').textContent=s.score;$('flatt').textContent='#'+s.attempt;$('flbest').textContent=s.best;
   $('fllr').textContent=`${s.left_hz.toFixed(1)} / ${s.right_hz.toFixed(1)} Гц`;$('flflap').className=s.flap?'on':'';
-  if(s.flap){flapFx={t0:performance.now(),kind:'flap'};pressKey(18+(Math.random()*6|0),0x3dff9a);play('flap');}
+  if(s.flap&&!DISTRACT){flapFx={t0:performance.now(),kind:'flap'};pressKey(18+(Math.random()*6|0),0x3dff9a);play('flap');}
   if((s.passed||s.crashed||FL.tickerAt!==s.attempt)&&ENV.redraw){FL.tickerAt=s.attempt;ENV.redraw();}
   if(s.passed){flapFx={t0:performance.now(),kind:'reward'};play('reward');toast('+1<small>труба пройдена · дофамин</small>','BUY');}
-  if(s.crashed){flapFx={t0:performance.now(),kind:'crash'};play('aversive');toast(`БАМ!<small>попытка #${s.attempt}: ${s.score} · наказание</small>`,'SELL');}}
+  if(s.crashed){if(window.MOM_EVENT)MOM_EVENT('crash');flapFx={t0:performance.now(),kind:'crash'};play('aversive');toast(`БАМ!<small>попытка #${s.attempt}: ${s.score} · наказание</small>`,'SELL');}}
 function flCurve(){const c=$('flcurve'),g=c.getContext('2d'),W=c.width,H=c.height,a=FL.attempts;g.clearRect(0,0,W,H);if(!a.length)return;
   const n=a.length,mx=Math.max(3,...a.map(x=>x.score)),X=i=>6+(W-12)*(n<2?.5:i/(n-1)),Y=v=>H-6-(H-12)*v/mx;
   g.fillStyle='#56618a';a.forEach((x,i)=>g.fillRect(X(i)-1,Y(x.score)-1,3,3));
@@ -1068,6 +1107,7 @@ const SFX={
   buy(t){[988,1319].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:4000}));tone(1976,t+.16,.5,{g:.08});},
   sell(t){[1319,988].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:3000}));tone(494,t+.16,.5,{type:'triangle',g:.15});},
   flap(t){tone(760,t,.06,{type:'square',g:.04,lp:3000});},
+  creak(t){tone(180,t,.9,{type:'sawtooth',g:.05,to:120,lp:600});tone(260,t+.35,.6,{type:'sawtooth',g:.03,to:200,lp:500});},
   bell(t){[880,1320,1760].forEach((f,i)=>tone(f,t,2.2-i*.5,{type:'sine',g:.05/(i+1)}));},
   choir(t){[261.6,329.6,392,523.2].forEach((f,i)=>[-6,0,7].forEach(dt=>{const o=AC.createOscillator(),bp=AC.createBiquadFilter(),v=AC.createGain();o.type='sawtooth';o.frequency.value=f;o.detune.value=dt;
     bp.type='bandpass';bp.frequency.value=800+i*120;bp.Q.value=4;v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(.022,t+.9);v.gain.linearRampToValueAtTime(0,t+3.2);o.connect(bp).connect(v).connect(MASTER);o.start(t);o.stop(t+3.3);}));},
@@ -1261,7 +1301,7 @@ function animate(){
   wings.forEach(w=>{const sd=w.userData.sd;w.rotation.set(sd*(.12+buzz*(.5+Math.sin(t*70)*.45)),sd*(WY+buzz*.7),.1+Math.sin(t*1.3)*.02);});
   // body idle
   body.position.y=Math.sin(t*1.6)*.015;body.rotation.z=Math.sin(t*.9)*.02+Math.sin(t*55)*shiver;
-  head.rotation.y=Math.sin(t*.6)*.18+(trading?.25:0);head.rotation.z=-.05+Math.sin(t*1.1)*.04+(ENV.headTilt||0);
+  head.rotation.y=Math.sin(t*.6)*.18+(trading?.25:0)+(ENV.headYaw||0);head.rotation.z=-.05+Math.sin(t*1.1)*.04+(ENV.headTilt||0);
   eyeMat.emissive.setRGB(.23+eyeGlow,.02,.03);
   // grooming every ~12 s when idle
   if(t>groomNext&&groomT<0&&!trading){groomT=t;}
