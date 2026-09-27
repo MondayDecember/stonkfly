@@ -105,6 +105,25 @@ function onState(s){
 function plural(n){n=Math.abs(n)%100;const k=n%10;return n>10&&n<20?'труб':k===1?'труба':k>=2&&k<=4?'трубы':'труб';}
 let msgT;function flash(t,col,sub){const m=$('msg');m.innerHTML=t+'<small>'+sub+'</small>';m.style.color=col;m.style.textShadow='0 0 1rem '+col;m.style.opacity=1;clearTimeout(msgT);msgT=setTimeout(()=>m.style.opacity=0,1600);}
 
+// рисованная дрозофила сбоку (для игры), нос вправо, размер ~22×14 единиц игры
+function drawGameFly(g,tt,flapping){
+  const beat=Math.sin(tt*(flapping?55:12)),up=beat*.5+.5;
+  const wing=(dy,rot,a)=>{g.save();g.translate(-1,-3);g.rotate(rot);g.fillStyle=`rgba(225,236,255,${a})`;g.strokeStyle='rgba(120,110,90,.55)';g.lineWidth=.45;
+    g.beginPath();g.ellipse(-6,dy,8.5,3.1,0,0,7);g.fill();g.stroke();g.beginPath();g.moveTo(0,dy);g.lineTo(-13,dy-.8);g.moveTo(-2,dy+.6);g.lineTo(-12,dy+1.4);g.stroke();g.restore();};
+  wing(-1,-.35-up*.9,.45);                                             // дальнее крыло
+  g.strokeStyle='#3a2a1c';g.lineWidth=.8;g.lineCap='round';           // лапки
+  [[1.5,-.3],[3,-.1],[4.5,.15]].forEach(([x,a],i)=>{const sw=Math.sin(tt*3+i)*.15;g.beginPath();g.moveTo(x,2.5);g.lineTo(x-1.5+a*4,6+sw);g.lineTo(x-3+a*6,8.5+sw);g.stroke();});
+  const ab=g.createLinearGradient(0,-5,0,5);ab.addColorStop(0,'#d9b27a');ab.addColorStop(1,'#8e6a3e');   // брюшко
+  g.save();g.beginPath();g.ellipse(-5.5,1,7.2,4.6,.08,0,7);g.fillStyle=ab;g.fill();g.clip();
+  g.fillStyle='#2b1e14';[-9.5,-6.5,-3.6].forEach(x=>{g.beginPath();g.ellipse(x,1,1.1,5,0,0,7);g.fill();});g.restore();
+  const th=g.createRadialGradient(1,-2,.5,1.5,-.5,5);th.addColorStop(0,'#b88d5a');th.addColorStop(1,'#6d4f2e');   // грудь
+  g.beginPath();g.ellipse(1.5,-.5,4.2,3.9,0,0,7);g.fillStyle=th;g.fill();
+  g.strokeStyle='#2b1e14';g.lineWidth=.35;for(let i=0;i<5;i++){const a=-2.6+i*.35;g.beginPath();g.moveTo(1.5+Math.cos(a)*3.7,-.5+Math.sin(a)*3.6);g.lineTo(1.5+Math.cos(a)*5.2,-.5+Math.sin(a)*5);g.stroke();}   // щетинки
+  g.beginPath();g.arc(6,-.2,2.9,0,7);g.fillStyle='#b89262';g.fill();                                   // голова
+  const ey=g.createRadialGradient(6.4,-1.6,.3,6.6,-.8,3);ey.addColorStop(0,'#ff5a5a');ey.addColorStop(1,'#8a0c16');
+  g.beginPath();g.ellipse(6.6,-.8,2.3,2.7,.2,0,7);g.fillStyle=ey;g.fill();g.fillStyle='rgba(255,255,255,.8)';g.beginPath();g.arc(6,-2,.6,0,7);g.fill();   // глаз
+  g.strokeStyle='#3a2a1c';g.lineWidth=.5;g.beginPath();g.moveTo(8,-2.4);g.lineTo(9.6,-3.6);g.stroke();   // усик
+  wing(0,-.15-up*.7,.6);}                                              // ближнее крыло
 // ---------- отрисовка игры (плавно между шагами мозга) ----------
 function draw(){requestAnimationFrame(draw);if(!cur)return;
   const w=cur.world,W=gc.width,H=gc.height,S=Math.min(W/w.W,H/w.H),ox=(W-w.W*S)/2,oy=(H-w.H*S)/2;
@@ -121,12 +140,7 @@ function draw(){requestAnimationFrame(draw);if(!cur)return;
   g.fillStyle='#cdb46e';g.fillRect(0,w.H-w.GROUND,w.W,w.GROUND);g.fillStyle='#a8904f';for(let x=-((performance.now()/1000*20)%12);x<w.W;x+=12)g.fillRect(x,w.H-w.GROUND,6,3);
   // муха вместо птички
   const y=prev?L(prev.y,cur.y):cur.y,vy=cur.vy,tt=performance.now()/1000;g.save();g.translate(w.BIRD_X,y);g.rotate(Math.max(-.5,Math.min(.9,vy/260)));
-  g.fillStyle='rgba(220,235,255,.55)';const fl=Math.sin(tt*(cur.flap?60:14))*.5+.5;
-  g.beginPath();g.ellipse(-3,-5-fl*3,9,3.5,-.5-fl*.6,0,7);g.fill();g.beginPath();g.ellipse(-3,-3-fl*2,8,3,-.2-fl*.4,0,7);g.fill();
-  g.fillStyle='#b08c5c';g.beginPath();g.ellipse(-4,0,8,5,0,0,7);g.fill();
-  g.fillStyle='#2e2218';for(let i=0;i<3;i++)g.fillRect(-9+i*4,-4,1.6,8);
-  g.fillStyle='#8a6a42';g.beginPath();g.arc(4,-1,4.2,0,7);g.fill();
-  g.fillStyle='#c0182a';g.beginPath();g.arc(7,-2,3,0,7);g.fill();g.restore();
+  drawGameFly(g,tt,cur.flap);g.restore();
   g.restore();}
 draw();
 

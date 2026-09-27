@@ -301,10 +301,21 @@ bake(shelf,books);
 // plant in the corner
 const plant=new THREE.Group();plant.position.set(-6.4,RY0,-2.4);scene.add(plant);
 const pot=new THREE.Mesh(new THREE.CylinderGeometry(.45,.35,.9,12),std(0xb35a3a));pot.position.y=.45;pot.castShadow=true;plant.add(pot);
-const leaves=[];
-for(let i=0;i<14;i++){const lf=new THREE.Mesh(new THREE.SphereGeometry(.35,6,4),flat(new THREE.Color().setHSL(.3+Math.random()*.06,.5,.22+Math.random()*.1)));
-  lf.scale.set(.35,1.4,.12);const a=i/14*Math.PI*2;lf.position.set(Math.cos(a)*.3,1.3+Math.random()*.6,Math.sin(a)*.3);lf.rotation.set(Math.sin(a)*.6,a,Math.cos(a)*.6);lf.castShadow=true;plant.add(lf);leaves.push(lf);}
-bake(plant,leaves,{flatShading:true});
+// земля в горшке и ободок
+{const soil=new THREE.Mesh(new THREE.CircleGeometry(.42,16),std(0x3a2616,{roughness:1}));soil.rotation.x=-Math.PI/2;soil.position.y=.86;plant.add(soil);
+ const rim=new THREE.Mesh(new THREE.TorusGeometry(.45,.05,8,20),std(0xa04e32));rim.rotation.x=Math.PI/2;rim.position.y=.9;plant.add(rim);}
+// настоящие листья: вытянутая форма с прожилкой, изогнута дугой наружу
+{const leafTex=canvasTex(64,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,w,0);gr.addColorStop(0,'#1f5a2a');gr.addColorStop(.5,'#3f9a4c');gr.addColorStop(1,'#1f5a2a');
+   g.fillStyle=gr;g.fillRect(0,0,w,h);g.strokeStyle='#8fd48a';g.lineWidth=2.5;g.beginPath();g.moveTo(w/2,h);g.lineTo(w/2,0);g.stroke();
+   g.strokeStyle='rgba(160,220,150,.35)';g.lineWidth=1;for(let y=20;y<h;y+=22){g.beginPath();g.moveTo(w/2,y);g.lineTo(4,y-14);g.moveTo(w/2,y);g.lineTo(w-4,y-14);g.stroke();}});
+ function leafGeo(L,W,bend){const s=new THREE.Shape();s.moveTo(0,0);s.bezierCurveTo(W*.9,L*.25,W*.7,L*.7,0,L);s.bezierCurveTo(-W*.7,L*.7,-W*.9,L*.25,0,0);
+   const g=new THREE.ShapeGeometry(s,12),p=g.attributes.position,uv=g.attributes.uv;
+   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),k=y/L;uv.setXY(i,.5+x/(2*W),k);
+     const ang=k*bend;p.setXYZ(i,x,Math.sin(ang)*L/bend*(bend?1:0)||y,(1-Math.cos(ang))*L/(bend||1)+Math.abs(x)*.25);}   // дуга наружу + лёгкий желобок
+   g.computeVertexNormals();return g;}
+ const geos=[];for(let i=0;i<16;i++){const a=i/16*Math.PI*2+Math.random()*.3,tall=i%2?1:.75,g=leafGeo(1.1*tall+Math.random()*.3,.16+Math.random()*.05,.9+Math.random()*.6);
+   g.rotateY(-a);g.translate(Math.cos(a)*.08,.85,Math.sin(a)*.08);geos.push(g);}
+ const lm=new THREE.Mesh(mergeGeometries(geos),new THREE.MeshStandardMaterial({map:leafTex,side:THREE.DoubleSide,roughness:.7}));lm.castShadow=true;plant.add(lm);}
 // office chair (empty, pushed back)
 const chair=new THREE.Group();chair.position.set(-.1,RY0,2.9);chair.rotation.y=.5;scene.add(chair);const cm=std(0x1c1f2e,{roughness:.6});
 box(1.3,.18,1.3,cm,[0,1.2,0],chair);const back=box(1.3,1.6,.16,cm,[0,2.1,.62],chair);back.rotation.x=-.12;
@@ -1074,6 +1085,25 @@ function flCurve(){const c=$('flcurve'),g=c.getContext('2d'),W=c.width,H=c.heigh
   g.strokeStyle='#ffd06a';g.lineWidth=3;g.beginPath();a.forEach((x,i)=>{const w=a.slice(Math.max(0,i-19),i+1),m=w.reduce((p,q)=>p+q.score,0)/w.length;i?g.lineTo(X(i),Y(m)):g.moveTo(X(i),Y(m));});g.stroke();
   if(FL.base!=null){g.strokeStyle='#ff7aa8';g.setLineDash([10,8]);g.lineWidth=3;g.beginPath();g.moveTo(6,Y(FL.base));g.lineTo(W-6,Y(FL.base));g.stroke();g.setLineDash([]);}
   const avg=l=>l.length?(l.reduce((p,q)=>p+q.score,0)/l.length).toFixed(2):'—';$('flavg').textContent=avg(a.slice(0,50))+' → '+avg(a.slice(-50));}
+// рисованная дрозофила сбоку (для игры), нос вправо, размер ~22×14 единиц игры
+function drawGameFly(g,tt,flapping){
+  const beat=Math.sin(tt*(flapping?55:12)),up=beat*.5+.5;
+  const wing=(dy,rot,a)=>{g.save();g.translate(-1,-3);g.rotate(rot);g.fillStyle=`rgba(225,236,255,${a})`;g.strokeStyle='rgba(120,110,90,.55)';g.lineWidth=.45;
+    g.beginPath();g.ellipse(-6,dy,8.5,3.1,0,0,7);g.fill();g.stroke();g.beginPath();g.moveTo(0,dy);g.lineTo(-13,dy-.8);g.moveTo(-2,dy+.6);g.lineTo(-12,dy+1.4);g.stroke();g.restore();};
+  wing(-1,-.35-up*.9,.45);                                             // дальнее крыло
+  g.strokeStyle='#3a2a1c';g.lineWidth=.8;g.lineCap='round';           // лапки
+  [[1.5,-.3],[3,-.1],[4.5,.15]].forEach(([x,a],i)=>{const sw=Math.sin(tt*3+i)*.15;g.beginPath();g.moveTo(x,2.5);g.lineTo(x-1.5+a*4,6+sw);g.lineTo(x-3+a*6,8.5+sw);g.stroke();});
+  const ab=g.createLinearGradient(0,-5,0,5);ab.addColorStop(0,'#d9b27a');ab.addColorStop(1,'#8e6a3e');   // брюшко
+  g.save();g.beginPath();g.ellipse(-5.5,1,7.2,4.6,.08,0,7);g.fillStyle=ab;g.fill();g.clip();
+  g.fillStyle='#2b1e14';[-9.5,-6.5,-3.6].forEach(x=>{g.beginPath();g.ellipse(x,1,1.1,5,0,0,7);g.fill();});g.restore();
+  const th=g.createRadialGradient(1,-2,.5,1.5,-.5,5);th.addColorStop(0,'#b88d5a');th.addColorStop(1,'#6d4f2e');   // грудь
+  g.beginPath();g.ellipse(1.5,-.5,4.2,3.9,0,0,7);g.fillStyle=th;g.fill();
+  g.strokeStyle='#2b1e14';g.lineWidth=.35;for(let i=0;i<5;i++){const a=-2.6+i*.35;g.beginPath();g.moveTo(1.5+Math.cos(a)*3.7,-.5+Math.sin(a)*3.6);g.lineTo(1.5+Math.cos(a)*5.2,-.5+Math.sin(a)*5);g.stroke();}   // щетинки
+  g.beginPath();g.arc(6,-.2,2.9,0,7);g.fillStyle='#b89262';g.fill();                                   // голова
+  const ey=g.createRadialGradient(6.4,-1.6,.3,6.6,-.8,3);ey.addColorStop(0,'#ff5a5a');ey.addColorStop(1,'#8a0c16');
+  g.beginPath();g.ellipse(6.6,-.8,2.3,2.7,.2,0,7);g.fillStyle=ey;g.fill();g.fillStyle='rgba(255,255,255,.8)';g.beginPath();g.arc(6,-2,.6,0,7);g.fill();   // глаз
+  g.strokeStyle='#3a2a1c';g.lineWidth=.5;g.beginPath();g.moveTo(8,-2.4);g.lineTo(9.6,-3.6);g.stroke();   // усик
+  wing(0,-.15-up*.7,.6);}                                              // ближнее крыло
 function drawFlappyScreen(){const s=FL.cur,g=scrC.getContext('2d'),W=1024,H=600;
   g.fillStyle='#0a0f1f';g.fillRect(0,0,W,H);g.fillStyle='#10193a';g.fillRect(0,0,W,56);g.fillStyle='#ffd23f';g.beginPath();g.arc(34,28,14,0,7);g.fill();
   g.fillStyle='#e8eeff';g.font='bold 24px monospace';g.fillText('FLAPPY FLY',60,36);
@@ -1086,9 +1116,7 @@ function drawFlappyScreen(){const s=FL.cur,g=scrC.getContext('2d'),W=1024,H=600;
     g.fillStyle='#3cb356';g.fillRect(x,0,w.PIPE_W,t);g.fillRect(x,b,w.PIPE_W,w.H-w.GROUND-b);g.fillStyle='#1c6a2e';g.fillRect(x-3,t-8,w.PIPE_W+6,8);g.fillRect(x-3,b,w.PIPE_W+6,8);}
   g.fillStyle='#cdb46e';g.fillRect(0,w.H-w.GROUND,w.W,w.GROUND);
   const y=pv?L(pv.y,s.y):s.y,tt=performance.now()/1000;g.save();g.translate(w.BIRD_X,y);g.rotate(Math.max(-.5,Math.min(.9,s.vy/260)));
-  const fl=Math.sin(tt*(s.flap?60:14))*.5+.5;g.fillStyle='rgba(230,240,255,.6)';g.beginPath();g.ellipse(-3,-5-fl*3,9,3.5,-.5-fl*.6,0,7);g.fill();
-  g.fillStyle='#b08c5c';g.beginPath();g.ellipse(-4,0,8,5,0,0,7);g.fill();g.fillStyle='#2e2218';for(let i=0;i<3;i++)g.fillRect(-9+i*4,-4,1.6,8);
-  g.fillStyle='#8a6a42';g.beginPath();g.arc(4,-1,4.2,0,7);g.fill();g.fillStyle='#c0182a';g.beginPath();g.arc(7,-2,3,0,7);g.fill();g.restore();
+  drawGameFly(g,tt,s.flap);g.restore();
   g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;g.font='bold 26px monospace';g.textAlign='center';g.strokeText(s.score,w.W/2,28);g.fillText(s.score,w.W/2,28);g.textAlign='left';
   g.restore();
   if(SCREEN==='crt'){g.globalCompositeOperation='multiply';g.fillStyle='#3cff70';g.fillRect(0,0,W,H);g.globalCompositeOperation='source-over';g.fillStyle='rgba(0,0,0,.35)';for(let yy=0;yy<H;yy+=4)g.fillRect(0,yy,W,2);}
