@@ -47,6 +47,7 @@ P
   ask)      shift; curl -s -X POST "http://127.0.0.1:8081/ask" -H 'Content-Type: application/json' \
               -d "$(python3 -c 'import json,sys;print(json.dumps({"q":" ".join(sys.argv[1:]),"who":"Игорь"}))' "$@")" \
               | python3 -c 'import json,sys;print(json.load(sys.stdin)["msg"])' || echo "Оракул не запущен." ;;
+  check)    shift; .venv/bin/python flappy_check.py "$@" ;;
   dream)    tail -n 3 runs/dreams/status.json 2>/dev/null; echo; ls -t runs/dreams/*.png 2>/dev/null | head -3 ;;
   apps)     shift; if [ $# -eq 0 ]; then echo "Сейчас: $(cat apps.conf 2>/dev/null || echo 'flappy oracle dreams')"; else echo "$*" > apps.conf; echo "Будут запущены: $*. Примени: stonkfly restart"; fi ;;
   season)   ./new-season.sh ;;
@@ -78,6 +79,7 @@ stonkfly — управление мухой
   stonkfly logs      живые логи (выйти: Ctrl+B, потом D)
   stonkfly stop      остановить
   stonkfly restart   перезапустить
+  stonkfly check     учится ли муха во Flappy Fly (stonkfly check --quick: только счёт)
   stonkfly season    закончить сезон и начать новый с \$100
   stonkfly flappy    открыть Flappy Fly
   stonkfly ask ТЕКСТ спросить муху-оракула
