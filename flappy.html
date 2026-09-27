@@ -52,6 +52,7 @@ html,body{margin:0;height:100%;background:#05070f;color:#dfe8ff;font-family:"Cou
       <div class="row"><span>среднее за 50 попыток</span><b id="avg">—</b></div>
       <div class="row"><span>среднее за первые 50</span><b id="avg0">—</b></div>
       <div class="row"><span>всего попыток</span><b id="tot">—</b></div>
+      <div class="row"><span>муха, машущая наугад</span><b id="base">—</b></div>
     </div>
     <div class="panel">
       <div class="h"><span>МОЗГ МУХИ</span><span id="ms">—</span></div>
@@ -62,15 +63,15 @@ html,body{margin:0;height:100%;background:#05070f;color:#dfe8ff;font-family:"Cou
       <div class="row"><span>спайков за шаг</span><b id="sp">—</b></div>
       <div class="row"><span>память: изменено</span><b id="mem">—</b></div>
     </div>
-    <div class="panel" id="note">Настоящий коннектом дрозофилы (MaleCNS, 166 700 нейронов) видит игру через свои фоторецепторы. Взмах — когда правый нейрон DNp20 стреляет заметно сильнее левого, чем обычно. Пройденная труба — дофамин (PAM11), удар — нейроны наказания (PPL101), синапсы памяти меняются. Для мухи игра идёт в реальном времени её мозга, мы смотрим в замедлении. Научится ли она — неизвестно, это эксперимент.</div>
+    <div class="panel" id="note">Настоящий коннектом дрозофилы (MaleCNS, 166 700 нейронов) видит игру через свои фоторецепторы. Взмах — когда правый нейрон DNp20 стреляет заметно сильнее левого, чем обычно. Пройденная труба — дофамин (PAM11), удар — нейроны наказания (PPL101), синапсы памяти меняются. Для мухи игра идёт в реальном времени её мозга, мы смотрим в замедлении. Научится ли она — неизвестно, это эксперимент. Честная проверка: жёлтая линия (среднее мухи) должна подняться выше розовой (муха, машущая наугад с той же частотой).</div>
   </div>
-  <div id="curve" class="panel"><div class="h"><span>КРИВАЯ ОБУЧЕНИЯ: трубы за попытку</span><span class="lg"><i style="background:#56618a"></i>попытка<i style="background:#ffd06a"></i>среднее за 20<i style="background:#3dff9a"></i>рекорд</span></div><canvas id="cc"></canvas></div>
+  <div id="curve" class="panel"><div class="h"><span>КРИВАЯ ОБУЧЕНИЯ: трубы за попытку</span><span class="lg"><i style="background:#56618a"></i>попытка<i style="background:#ffd06a"></i>среднее за 20<i style="background:#3dff9a"></i>рекорд<i style="background:#ff7aa8"></i>наугад</span></div><canvas id="cc"></canvas></div>
 </div>
 <script>
 const $=id=>document.getElementById(id);
 const qs=new URLSearchParams(location.search);
 const BASE='runs/flappy/';
-let cur=null,prev=null,tRecv=0,interval=1000,attempts=[],demo=false,lastWall=0;
+let BASE_LINE=null,cur=null,prev=null,tRecv=0,interval=1000,attempts=[],demo=false,lastWall=0;
 const gc=$('gc'),g=gc.getContext('2d'),cc=$('cc'),c2=cc.getContext('2d');
 function fit(){for(const c of [gc,cc]){c.width=c.clientWidth*devicePixelRatio;c.height=c.clientHeight*devicePixelRatio;}}
 addEventListener('resize',()=>{fit();drawCurve();});fit();
@@ -89,7 +90,7 @@ function onState(s){
   if(cur)interval=Math.min(4000,Math.max(300,(performance.now()-tRecv)*.7+interval*.3));
   cur=s;tRecv=performance.now();
   $('score').textContent=s.score;$('att').textContent='#'+s.attempt;$('sc').textContent=s.score+' '+plural(s.score);
-  $('best').textContent=s.best;$('lh').textContent=s.left_hz.toFixed(1)+' Гц';$('rh').textContent=s.right_hz.toFixed(1)+' Гц';
+  $('best').textContent=s.best;if(s.baseline!=null){BASE_LINE=s.baseline;$('base').textContent=s.baseline.toFixed(2);}$('lh').textContent=s.left_hz.toFixed(1)+' Гц';$('rh').textContent=s.right_hz.toFixed(1)+' Гц';
   const mx=Math.max(60,s.left_hz,s.right_hz);$('lb').style.width=s.left_hz/mx*100+'%';$('rb').style.width=s.right_hz/mx*100+'%';
   const span=30,pos=v=>Math.min(100,Math.max(0,(v+span)/(2*span)*100));
   $('dh').textContent=(s.diff_hz>=0?'+':'')+s.diff_hz.toFixed(1)+' / '+(s.threshold_hz??0).toFixed(1);
@@ -136,6 +137,7 @@ function drawCurve(){const W=cc.width,H=cc.height;c2.clearRect(0,0,W,H);if(!atte
   c2.fillStyle='#56618a';attempts.forEach((a,i)=>{c2.fillRect(X(i)-1,Y(a.score)-1,2.5,2.5);});
   c2.strokeStyle='#ffd06a';c2.lineWidth=2*devicePixelRatio;c2.beginPath();attempts.forEach((a,i)=>{const s=attempts.slice(Math.max(0,i-19),i+1),m=s.reduce((x,y)=>x+y.score,0)/s.length;i?c2.lineTo(X(i),Y(m)):c2.moveTo(X(i),Y(m));});c2.stroke();
   c2.strokeStyle='#3dff9a';c2.lineWidth=1.5*devicePixelRatio;c2.beginPath();let b=0;attempts.forEach((a,i)=>{b=Math.max(b,a.score);i?c2.lineTo(X(i),Y(b)):c2.moveTo(X(i),Y(b));});c2.stroke();
+  if(BASE_LINE!=null){c2.strokeStyle='#ff7aa8';c2.setLineDash([8,6]);c2.lineWidth=2*devicePixelRatio;c2.beginPath();c2.moveTo(P,Y(BASE_LINE));c2.lineTo(W-P,Y(BASE_LINE));c2.stroke();c2.setLineDash([]);}
   const avg=a=>a.length?(a.reduce((x,y)=>x+y.score,0)/a.length):0;
   $('avg').textContent=avg(attempts.slice(-50)).toFixed(2);$('avg0').textContent=avg(attempts.slice(0,50)).toFixed(2);$('tot').textContent=fmt(n);}
 
@@ -150,12 +152,12 @@ setInterval(poll,250);setInterval(pollAttempts,4000);poll();pollAttempts();
 
 // ---------- демо без мухи (GitHub Pages): та же физика, случайные взмахи ----------
 function startDemo(){$('src').textContent='ДЕМО: случайные взмахи (живая муха играет у автора)';$('eye').style.display='none';
-  const w={W:320,H:180,GROUND:16,GAP:84,PIPE_W:34,BIRD_X:70,BIRD_R:7,STEP_MS:80};let st,att=0,best=0;
-  const reset=()=>{att++;st={y:90,vy:0,score:0,steps:0,pipes:[[260,40+Math.random()*80]]};};reset();
-  setInterval(()=>{const flap=Math.random()<.2,dt=.08;if(flap)st.vy=-125;st.vy+=380*dt;st.y+=st.vy*dt;if(st.y<7){st.y=7;st.vy=0;}
-    let passed=false;st.pipes.forEach(p=>{const o=p[0];p[0]-=70*dt;if(o+34>=70&&70>p[0]+34){st.score++;passed=true;}});
-    if(st.pipes.at(-1)[0]<155)st.pipes.push([320,62+Math.random()*60]);st.pipes=st.pipes.filter(p=>p[0]>-34);
-    let crashed=st.y+7>164;st.pipes.forEach(([x,gy])=>{if(x-7<70&&70<x+41&&!(gy-35<st.y&&st.y<gy+35))crashed=true;});
+  const w={W:320,H:180,GROUND:16,GAP:125,PIPE_W:34,BIRD_X:70,BIRD_R:7,STEP_MS:80};let st,att=0,best=0;
+  const reset=()=>{att++;st={y:90,vy:0,score:0,steps:0,pipes:[[260,76+Math.random()*18]]};};reset();
+  setInterval(()=>{const flap=Math.random()<.2,dt=.08;if(flap)st.vy=-88;st.vy+=240*dt;st.y+=st.vy*dt;if(st.y<7){st.y=7;st.vy=0;}
+    let passed=false;st.pipes.forEach(p=>{const o=p[0];p[0]-=45*dt;if(o+34>=70&&70>p[0]+34){st.score++;passed=true;}});
+    if(st.pipes.at(-1)[0]<110)st.pipes.push([320,76+Math.random()*18]);st.pipes=st.pipes.filter(p=>p[0]>-34);
+    let crashed=st.y+7>164;st.pipes.forEach(([x,gy])=>{if(x-7<70&&70<x+41&&!(gy-55<st.y&&st.y<gy+55))crashed=true;});
     best=Math.max(best,st.score);const d=(Math.random()-.5)*20;
     onState({wall:Date.now()/1000,attempt:att,score:st.score,best,y:st.y,vy:st.vy,pipes:st.pipes.map(p=>[...p]),flap,passed,crashed,left_hz:40,right_hz:40+d,diff_hz:d,threshold_hz:5,spikes:600000,compute:1,changed_edges:null,world:w});
     if(crashed){attempts.push({attempt:att,score:st.score});drawCurve();reset();}},700);}

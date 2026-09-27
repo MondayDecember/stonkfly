@@ -65,7 +65,7 @@ canvas{display:block}
 #toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
 #over{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(5,5,15,.7);font-size:5rem;letter-spacing:.2em;color:#ff5470;text-shadow:0 0 1.5rem #ff5470}
 #over small{font-size:1.2rem;color:#dfe8ff;letter-spacing:.05em;text-shadow:none;margin-top:1rem}
-#disc{position:fixed;left:50%;bottom:.4rem;transform:translateX(-50%);font-size:.7rem;color:#56618a;white-space:nowrap}
+#disc{position:fixed;left:50%;bottom:.4rem;transform:translateX(-50%);font-size:.7rem;color:#c8d4f0;background:rgba(5,10,25,.72);padding:.15rem .55rem;white-space:nowrap}
 #help{position:fixed;left:50%;top:1rem;transform:translateX(-50%);font-size:.75rem;color:#c8d4f0;background:rgba(5,10,25,.72);padding:.2rem .55rem}
 .BUY{color:#3dff9a;text-shadow:0 0 .6rem #3dff9a}.SELL{color:#ff5470;text-shadow:0 0 .6rem #ff5470}.HOLD{color:#9aa6c8}
 .reward{color:#ffd06a}.aversive{color:#c86bff}
@@ -111,8 +111,9 @@ canvas{display:block}
 <div id="flhud" class="panel"><div class="t">FLAPPY FLY</div><div class="sc" id="flsc">0</div>
   <div class="row"><span>попытка</span><b id="flatt">—</b></div><div class="row"><span>рекорд</span><b id="flbest">—</b></div>
   <div class="row"><span>среднее: первые 50 → последние 50</span><b id="flavg">—</b></div>
+  <div class="row"><span>муха, машущая наугад</span><b id="flbase">—</b></div>
   <div class="row"><span>DNp20 лев / прав</span><b id="fllr">—</b></div><div id="flflap">ВЗМАХ</div>
-  <canvas id="flcurve" width="600" height="160"></canvas><div class="row"><span style="font-size:.68rem">трубы за попытку · жёлтая линия: среднее за 20</span></div></div>
+  <canvas id="flcurve" width="600" height="160"></canvas><div class="row"><span style="font-size:.68rem">жёлтая: среднее мухи · розовая: наугад</span></div></div>
 <div id="sermon"></div>
 <div id="preach" class="panel"><div class="s" id="prState">СЛУШАЕТ ТИШИНУ</div>
   <div class="row"><span>тема</span><b id="prTheme">—</b></div><div class="row"><span>настроение мозга</span><b id="prMood">—</b></div>
@@ -765,30 +766,69 @@ const mom=miniFly(1.8);mom.visible=false;scene.add(mom);
  const knot=new THREE.Mesh(new THREE.ConeGeometry(.07,.16,6),new THREE.MeshStandardMaterial({map:dots}));knot.position.set(-.12,-.14,0);knot.rotation.z=2.4;hd.add(knot);
  const apron=new THREE.Mesh(new THREE.SphereGeometry(.31,16,10,Math.PI*.55,Math.PI*.9,Math.PI*.35,Math.PI*.5),new THREE.MeshStandardMaterial({color:0xf4e6ea,roughness:.9,side:THREE.DoubleSide}));
  apron.scale.set(1.2,.95,1.02);apron.position.set(-.05,-.02,0);apron.rotation.y=-Math.PI/2;u.body.add(apron);}
+// ---- папа из мема «Ты там выигрываешь, сынок?»: стоит в дверях с кружкой ----
+const dad=miniFly(2.0);dad.visible=false;scene.add(dad);
+{const u=dad.userData,hd=u.head,dk=new THREE.MeshStandardMaterial({color:0x2a1e14,roughness:.8});
+ const must=new THREE.Mesh(new THREE.BoxGeometry(.05,.06,.26),dk);must.position.set(.2,-.1,0);hd.add(must);   // усы
+ [-1,1].forEach(sd=>{const e=new THREE.Mesh(new THREE.BoxGeometry(.04,.04,.12),dk);e.position.set(.22,-.12,sd*.14);e.rotation.x=sd*.5;hd.add(e);});
+ const shirt=new THREE.Mesh(new THREE.SphereGeometry(.33,16,10,0,Math.PI*2,Math.PI*.25,Math.PI*.5),new THREE.MeshStandardMaterial({color:0xf2f2f2,roughness:.9,side:THREE.DoubleSide}));
+ shirt.scale.set(1.2,.95,1);u.body.add(shirt);   // белая майка
+ const mug=new THREE.Mesh(new THREE.CylinderGeometry(.09,.08,.18,12),new THREE.MeshStandardMaterial({color:0x3a6ab0}));mug.position.set(.35,-.25,.22);u.body.add(mug);}
 const MOM_SAY=['Сынок, иди кушать, всё остынет!','Опять ты в свои игры играешь?','Ты уроки сделал?','Выключай компьютер, спать пора!','Я варенье сварила, иди попробуй!',
   'Мусор вынеси, пожалуйста!','Бабушке позвонить не забудь!','Не сиди так близко к монитору, глаза испортишь!','Форточку закрой, сквозняк!','Опять крошки на столе оставил?'];
 const SON_SAY=['Ну мам, ещё одну попытку!','Щас, мам!','Я не играю, я учусь! У меня синапсы меняются!','Мам, ну пять минут!','Ага, иду-иду…','Мам, не отвлекай, тут труба!'];
-const FAST=qs.get('mom')==='fast';let st='idle',st0=performance.now(),next=performance.now()+(FAST?6000:30000),talkKind=null,crashed=false;
-const DOOR_IN=new THREE.Vector3(RX0-.6,.6,7.5),DOOR_OUT=new THREE.Vector3(RX0+1.6,1.1,7.2),SPOT=new THREE.Vector3(-3.4,1.45,.4);
+function sonToDad(){const c=FL.cur;if(!c)return['…','Ну ладно, сынок.'];
+  if(c.passed||c.score>0)return[`Да, пап! Уже ${c.score} ${c.score===1?'труба':c.score<5?'трубы':'труб'}!`,'Молодец, сынок.'];
+  const a=FL.attempts,tail=a.slice(-20),avg=tail.length?tail.reduce((p,q)=>p+q.score,0)/tail.length:0;
+  if(c.crashed||c.steps<4)return[`Нет, пап… Разбился. Уже ${c.attempt}-й раз.`,'Ну ничего, сынок. Ну ничего…'];
+  if(FL.base!=null&&avg>FL.base)return['Кажется, да! Я лучше, чем наугад!','Горжусь тобой, сынок.'];
+  return['Пока нет, пап. Учусь.','Ну-ну. Учись, сынок.'];}
+const FAST=qs.get('mom')==='fast',CAMFOCUS=qs.get('momcam')!=='0'&&!AUTO;
+let st='idle',st0=performance.now(),next=performance.now()+(FAST?6000:30000),crashed=false,who='mom',visits=0;
+const DOOR_IN=new THREE.Vector3(RX0-.6,.6,7.5),DOOR_OUT=new THREE.Vector3(RX0+1.6,1.1,7.2),SPOT=new THREE.Vector3(-3.4,1.45,.4),DAD_SPOT=new THREE.Vector3(RX0+.9,.35,7.5);
+// кадры камеры на время разговора
+// кадр «двоих»: камера сбоку от линии сын—гость, чтобы оба были в кадре
+function twoShot(B){const A=fly.getWorldPosition(new THREE.Vector3());A.y+=.3;const mid=A.clone().add(B).multiplyScalar(.5),dir=B.clone().sub(A),d=dir.length();
+  const n=new THREE.Vector3(-dir.z,0,dir.x).normalize();if(n.z<0)n.negate();   // сторона комнаты, где зритель
+  const p=mid.clone().add(n.multiplyScalar(d*1.15+3.5));p.y=mid.y+1.4+d*.12;p.clamp(CAM_MIN,CAM_MAX);return{p,t:mid};}
+const SHOT={};
+let camFrom=null,camK=0;
+function camTo(shot,k){if(!CAMFOCUS)return;if(!camFrom)camFrom={p:camera.position.clone(),t:controls.target.clone()};
+  const e=k*k*(3-2*k);camera.position.lerpVectors(camFrom.p,shot.p,e);controls.target.lerpVectors(camFrom.t,shot.t,e);camera.lookAt(controls.target);}
+function camBack(k){if(!CAMFOCUS||!camFrom)return;const e=k*k*(3-2*k),cur={p:SHOT[who].p,t:SHOT[who].t};
+  camera.position.lerpVectors(cur.p,camFrom.p,e);controls.target.lerpVectors(cur.t,camFrom.t,e);camera.lookAt(controls.target);if(k>=1)camFrom=null;}
 function bez(a,b,c,k){const u=1-k;return a.clone().multiplyScalar(u*u).add(b.clone().multiplyScalar(2*u*k)).add(c.clone().multiplyScalar(k*k));}
 function bub(id,html,obj,up){const el=$(id);if(!html){el.style.display='none';return;}el.innerHTML=html;const p=obj.getWorldPosition(new THREE.Vector3());p.y+=up;p.project(camera);
   const ok=p.z<1&&Math.abs(p.x)<1.1&&Math.abs(p.y)<1.1;el.style.display=ok?'block':'none';if(ok){el.style.left=((p.x+1)/2*innerWidth)+'px';el.style.top=((1-p.y)/2*innerHeight)+'px';}}
 window.MOM_EVENT=kind=>{if(st==='talk'&&kind==='crash')crashed=true;};
 const easeDoor=k=>-1.35*Math.sin(Math.min(1,Math.max(0,k))*Math.PI/2);
-let momLine='',sonLine='';
-ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000,u=mom.userData;
-  if(st==='idle'&&now>next){st='door';st0=now;momLine=MOM_SAY[Math.random()*MOM_SAY.length|0];sonLine=SON_SAY[Math.random()*SON_SAY.length|0];crashed=false;play('creak');}
-  if(st==='door'){doorPivot.rotation.y=easeDoor(e/1.2);if(e>1.2){st='enter';st0=now;mom.visible=true;}}
-  else if(st==='enter'){const k=Math.min(1,e/3);mom.position.copy(bez(DOOR_IN,DOOR_OUT,SPOT,k));mom.lookAt(fly.position.x,mom.position.y,fly.position.z);mom.rotateY(-Math.PI/2);liveFly(mom,t,dt,true);if(k>=1){st='talk';st0=now;}}
-  else if(st==='talk'){liveFly(mom,t,dt,e>7.5);mom.position.y=SPOT.y+Math.sin(t*2)*.05;u.buzz=Math.max(u.buzz,.6);
-    DISTRACT=1;ENV.headYaw=Math.min(.9,e*1.5);
-    bub('momBub',e<8?'<b>МАМА</b>'+momLine:'',u.head,.55);
-    bub('sonBub',e>3.2&&e<8?'<b>МУХА</b>'+(crashed?'Мам! Я из-за тебя разбился!':sonLine):'',head,.5);
+let momLine='',sonLine='',dadLines=null;
+function face(obj,x,z){obj.lookAt(x,obj.position.y,z);obj.rotateY(-Math.PI/2);}
+ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000;
+  if(st==='idle'&&now>next){visits++;SHOT.mom=twoShot(SPOT);SHOT.dad=twoShot(DAD_SPOT.clone().setY(1.1));who=(visits%3===0||qs.get('visit')==='dad')&&qs.get('visit')!=='mom'?'dad':'mom';
+    st='door';st0=now;momLine=MOM_SAY[Math.random()*MOM_SAY.length|0];sonLine=SON_SAY[Math.random()*SON_SAY.length|0];crashed=false;dadLines=null;play('creak');}
+  if(st!=='idle')controls.enabled=false;
+  if(st==='door'){doorPivot.rotation.y=easeDoor(e/1.2);camTo(SHOT[who],Math.min(1,e/1.2));
+    if(e>1.2){st='enter';st0=now;(who==='mom'?mom:dad).visible=true;}}
+  else if(st==='enter'){const k=Math.min(1,e/(who==='mom'?3:1.2));
+    if(who==='mom'){mom.position.copy(bez(DOOR_IN,DOOR_OUT,SPOT,k));face(mom,fly.position.x,fly.position.z);liveFly(mom,t,dt,true);}
+    else{dad.position.lerpVectors(new THREE.Vector3(RX0-.8,.35,7.5),DAD_SPOT,k);face(dad,fly.position.x,fly.position.z);liveFly(dad,t,dt,false,true);}
+    if(k>=1){st='talk';st0=now;}}
+  else if(st==='talk'){DISTRACT=1;ENV.headYaw=Math.min(who==='mom'?.9:1.4,e*1.5);
+    if(who==='mom'){liveFly(mom,t,dt,e>7.5);mom.position.y=SPOT.y+Math.sin(t*2)*.05;mom.userData.buzz=Math.max(mom.userData.buzz,.6);
+      bub('momBub',e<8?'<b>МАМА</b>'+momLine:'',mom.userData.head,.55);
+      bub('sonBub',e>3.2&&e<8?'<b>МУХА</b>'+(crashed?'Мам! Я из-за тебя разбился!':sonLine):'',head,.5);}
+    else{liveFly(dad,t,dt,false,true);if(!dadLines&&e>2.6)dadLines=sonToDad();
+      bub('momBub',e<8?'<b>ПАПА</b>'+(e<5.2||!dadLines?'Ты там выигрываешь, сынок?':dadLines[1]):'',dad.userData.head,.55);
+      bub('sonBub',e>2.6&&e<8&&dadLines?'<b>МУХА</b>'+dadLines[0]:'',head,.5);}
     if(e>8.2){st='leave';st0=now;$('momBub').style.display=$('sonBub').style.display='none';}}
-  else if(st==='leave'){const k=Math.min(1,e/3);mom.position.copy(bez(SPOT,DOOR_OUT,DOOR_IN,k));mom.lookAt(DOOR_IN.x,mom.position.y,DOOR_IN.z);mom.rotateY(-Math.PI/2);liveFly(mom,t,dt,true);
-    DISTRACT=0;ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);if(k>=1){st='close';st0=now;mom.visible=false;}}
-  else if(st==='close'){doorPivot.rotation.y=easeDoor(1-e/1.2);ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);
-    if(e>1.2){doorPivot.rotation.y=0;st='idle';st0=now;next=now+(FAST?20000:(150+Math.random()*150)*1000);}}};
+  else if(st==='leave'){const k=Math.min(1,e/(who==='mom'?3:1.2));
+    if(who==='mom'){mom.position.copy(bez(SPOT,DOOR_OUT,DOOR_IN,k));face(mom,DOOR_IN.x,DOOR_IN.z);liveFly(mom,t,dt,true);}
+    else{dad.position.lerpVectors(DAD_SPOT,new THREE.Vector3(RX0-.8,.35,7.5),k);liveFly(dad,t,dt,false,true);}
+    DISTRACT=0;ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);if(k>=1){st='close';st0=now;mom.visible=dad.visible=false;}}
+  else if(st==='close'){doorPivot.rotation.y=easeDoor(1-e/1.2);ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);camBack(Math.min(1,e/1.2));
+    if(e>1.2){doorPivot.rotation.y=0;st='idle';st0=now;controls.enabled=!AUTO;next=now+(FAST?20000:(150+Math.random()*150)*1000);}}};
+ENV.ownsCamera=()=>st!=='idle'&&CAMFOCUS;
 } // ======== /МАМА ========
 
 // ================= the fly (Drosophila) =================
@@ -1022,7 +1062,7 @@ async function flappyAttempts(){try{const r=await fetch('runs/flappy/attempts.js
 function flappyState(s){
   if(FL.cur&&s.attempt!==FL.cur.attempt)FL.prev=null;else FL.prev=FL.cur;
   if(FL.cur)FL.interval=Math.min(4000,Math.max(300,(performance.now()-FL.tRecv)*.7+FL.interval*.3));FL.cur=s;FL.tRecv=performance.now();
-  $('flsc').textContent=s.score;$('flatt').textContent='#'+s.attempt;$('flbest').textContent=s.best;
+  $('flsc').textContent=s.score;if(s.baseline!=null){FL.base=s.baseline;$('flbase').textContent=s.baseline.toFixed(2);}$('flatt').textContent='#'+s.attempt;$('flbest').textContent=s.best;
   $('fllr').textContent=`${s.left_hz.toFixed(1)} / ${s.right_hz.toFixed(1)} Гц`;$('flflap').className=s.flap?'on':'';
   if(s.flap&&!DISTRACT){flapFx={t0:performance.now(),kind:'flap'};pressKey(18+(Math.random()*6|0),0x3dff9a);play('flap');}
   if((s.passed||s.crashed||FL.tickerAt!==s.attempt)&&ENV.redraw){FL.tickerAt=s.attempt;ENV.redraw();}
@@ -1032,6 +1072,7 @@ function flCurve(){const c=$('flcurve'),g=c.getContext('2d'),W=c.width,H=c.heigh
   const n=a.length,mx=Math.max(3,...a.map(x=>x.score)),X=i=>6+(W-12)*(n<2?.5:i/(n-1)),Y=v=>H-6-(H-12)*v/mx;
   g.fillStyle='#56618a';a.forEach((x,i)=>g.fillRect(X(i)-1,Y(x.score)-1,3,3));
   g.strokeStyle='#ffd06a';g.lineWidth=3;g.beginPath();a.forEach((x,i)=>{const w=a.slice(Math.max(0,i-19),i+1),m=w.reduce((p,q)=>p+q.score,0)/w.length;i?g.lineTo(X(i),Y(m)):g.moveTo(X(i),Y(m));});g.stroke();
+  if(FL.base!=null){g.strokeStyle='#ff7aa8';g.setLineDash([10,8]);g.lineWidth=3;g.beginPath();g.moveTo(6,Y(FL.base));g.lineTo(W-6,Y(FL.base));g.stroke();g.setLineDash([]);}
   const avg=l=>l.length?(l.reduce((p,q)=>p+q.score,0)/l.length).toFixed(2):'—';$('flavg').textContent=avg(a.slice(0,50))+' → '+avg(a.slice(-50));}
 function drawFlappyScreen(){const s=FL.cur,g=scrC.getContext('2d'),W=1024,H=600;
   g.fillStyle='#0a0f1f';g.fillRect(0,0,W,H);g.fillStyle='#10193a';g.fillRect(0,0,W,56);g.fillStyle='#ffd23f';g.beginPath();g.arc(34,28,14,0,7);g.fill();
@@ -1326,11 +1367,12 @@ function animate(){
         for(const q of placed)if(Math.abs(p.x-q.x)<LH*9&&Math.abs(p.y-q.y)<LH)p.y=q.y+LH;   // сдвигаем вниз, пока не перестанет налезать
         placed.push(p);p.l.el.style.left=p.x+'px';p.l.el.style.top=p.y+'px';});}}
   screenLight.intensity=6+Math.sin(t*3)*.4;
-  if(AUTO)director(now,dt);else controls.update();
+  if(AUTO)director(now,dt);else if(!(ENV.ownsCamera&&ENV.ownsCamera()))controls.update();
   camera.position.clamp(CAM_MIN,CAM_MAX);
   renderer.render(scene,camera);cpuSum+=performance.now()-now;}
 audioInit();drawScreen(false);animate();
-if(MODE==='flappy'){['stats','season','ticker','hud'].forEach(id=>$(id).style.display='none');$('flhud').style.display='block';
+if(MODE==='flappy'){['stats','season','ticker','hud'].forEach(id=>$(id).style.display='none');
+  $('disc').textContent='настоящий коннектом мухи дрозофилы играет во Flappy Fly · взмах решают нейроны DNp20 · труба = дофамин, удар = наказание · эксперимент';$('flhud').style.display='block';
   flappyPoll();flappyAttempts();setInterval(flappyPoll,250);setInterval(flappyAttempts,5000);
   setInterval(()=>{oraclePoll();},3000);setInterval(dreamPoll,30000);dreamPoll();}
 else{poll();setInterval(poll,3000);}
