@@ -90,7 +90,7 @@ function onState(s){
   if(cur)interval=Math.min(4000,Math.max(300,(performance.now()-tRecv)*.7+interval*.3));
   cur=s;tRecv=performance.now();
   $('score').textContent=s.score;$('att').textContent='#'+s.attempt;$('sc').textContent=s.score+' '+plural(s.score);
-  $('best').textContent=s.best;if(s.baseline!=null){BASE_LINE=s.baseline;$('base').textContent=s.baseline.toFixed(2);}$('lh').textContent=s.left_hz.toFixed(1)+' Гц';$('rh').textContent=s.right_hz.toFixed(1)+' Гц';
+  $('best').textContent=s.best;if(s.baseline!=null){BASE_LINE=s.baseline;$('base').textContent=s.baseline.toFixed(2)+(s.flap_rate!=null?` (при ${Math.round(s.flap_rate*100)}% взмахов)`:'');}$('lh').textContent=s.left_hz.toFixed(1)+' Гц';$('rh').textContent=s.right_hz.toFixed(1)+' Гц';
   const mx=Math.max(60,s.left_hz,s.right_hz);$('lb').style.width=s.left_hz/mx*100+'%';$('rb').style.width=s.right_hz/mx*100+'%';
   const span=30,pos=v=>Math.min(100,Math.max(0,(v+span)/(2*span)*100));
   $('dh').textContent=(s.diff_hz>=0?'+':'')+s.diff_hz.toFixed(1)+' / '+(s.threshold_hz??0).toFixed(1);

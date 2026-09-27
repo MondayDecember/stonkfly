@@ -1062,7 +1062,7 @@ async function flappyAttempts(){try{const r=await fetch('runs/flappy/attempts.js
 function flappyState(s){
   if(FL.cur&&s.attempt!==FL.cur.attempt)FL.prev=null;else FL.prev=FL.cur;
   if(FL.cur)FL.interval=Math.min(4000,Math.max(300,(performance.now()-FL.tRecv)*.7+FL.interval*.3));FL.cur=s;FL.tRecv=performance.now();
-  $('flsc').textContent=s.score;if(s.baseline!=null){FL.base=s.baseline;$('flbase').textContent=s.baseline.toFixed(2);}$('flatt').textContent='#'+s.attempt;$('flbest').textContent=s.best;
+  $('flsc').textContent=s.score;if(s.baseline!=null){FL.base=s.baseline;$('flbase').textContent=s.baseline.toFixed(2)+(s.flap_rate!=null?` · взмахов ${Math.round(s.flap_rate*100)}%`:'');}$('flatt').textContent='#'+s.attempt;$('flbest').textContent=s.best;
   $('fllr').textContent=`${s.left_hz.toFixed(1)} / ${s.right_hz.toFixed(1)} Гц`;$('flflap').className=s.flap?'on':'';
   if(s.flap&&!DISTRACT){flapFx={t0:performance.now(),kind:'flap'};pressKey(18+(Math.random()*6|0),0x3dff9a);play('flap');}
   if((s.passed||s.crashed||FL.tickerAt!==s.attempt)&&ENV.redraw){FL.tickerAt=s.attempt;ENV.redraw();}

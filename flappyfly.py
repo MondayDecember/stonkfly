@@ -31,7 +31,7 @@ FLAP_RATE = float(os.environ.get("FLAP_RATE", 0.2))   # доля шагов со
 W, H, GROUND = 320, 180, 16
 # лёгкий режим: шире проход, медленнее трубы, мягче гравитация — больше шансов долететь и получить дофамин
 G, FLAP_V, SPEED, SPACING, GAP, PIPE_W, BIRD_X, BIRD_R = 240.0, -88.0, 45.0, 210.0, 125.0, 34, 70, 7
-LEVEL = "easy-v2"
+LEVEL = "easy-v3"   # v3: равенства П−Л решает DNpe017, планка по реальной доле взмахов
 
 
 def atomic(path, data):
@@ -96,18 +96,28 @@ class Game:
         return f
 
 
-def random_baseline(n=2000, seed=1):
-    """Сколько труб в среднем проходит муха, которая машет наугад с той же частотой. Планка для честного сравнения."""
+def random_baseline(rate, n=400, seed=1):
+    """Сколько труб в среднем проходит муха, которая машет наугад с частотой rate. Планка для честного сравнения."""
     rng = np.random.default_rng(seed)
     total = 0
     for _ in range(n):
         g = Game(rng)
         while True:
-            _, c = g.step(rng.random() < FLAP_RATE, STEP_MS / 1000)
+            _, c = g.step(rng.random() < rate, STEP_MS / 1000)
             if c or g.steps > 5000:
                 break
         total += g.score
     return total / n
+
+
+RATES = np.round(np.arange(0.02, 0.52, 0.04), 2)
+
+
+def decision_score(n):
+    """Чем сильнее правый DNp20 относительно левого, тем выше. Частоты за 80 мс идут ступеньками,
+    поэтому равенства разбирает нейрон DNpe017 (тот же «разрешающий», что у торговой мухи),
+    а оставшиеся — общая активность DNp20. Всё это — выход мозга, без случайности."""
+    return n["difference_hz"] + 0.01 * n["gate_spikes"] + 1e-4 * (n["left_hz"] + n["right_hz"])
 
 
 def main():
@@ -128,8 +138,9 @@ def main():
                 (OUT / name).rename(OUT / f"{name.split('.')[0]}-{stamp}.{name.split('.')[1]}")
         print("новые правила игры: старая история и память мухи отложены в архив", flush=True)
         (OUT / "params.json").write_text(json.dumps(params))
-    baseline = random_baseline()
-    print(f"планка случайного махания: {baseline:.2f} трубы за попытку", flush=True)
+    table = [random_baseline(r) for r in RATES]
+    base_at = lambda r: float(np.interp(r, RATES, table))
+    print("планка случайного махания: " + ", ".join(f"{r:.2f}→{b:.2f}" for r, b in zip(RATES, table)), flush=True)
     ckpt = OUT / "brain.npz"
     if ckpt.exists():
         try:
@@ -157,18 +168,27 @@ def main():
         frame = game.frame()
         n = ctl.observe(frame, stim)
         d = n["difference_hz"]
-        thr = float(np.percentile(recent, 100 * (1 - FLAP_RATE))) if len(recent) >= 20 else float(np.median(recent or [d]))
-        flap = d > thr
-        recent.append(d)
+        sc = decision_score(n)
+        if len(recent) >= 20:      # средний ранг: равные значения не «съедают» взмахи
+            arr = np.asarray(recent)
+            frac = ((arr < sc).sum() + 0.5 * (arr == sc).sum()) / len(arr)
+            flap = frac >= 1 - FLAP_RATE
+        else:
+            flap = sc > float(np.median(recent or [sc]))
+        recent.append(sc)
+        thr = float(np.percentile(recent, 100 * (1 - FLAP_RATE)))
         passed, crashed = game.step(flap, STEP_MS / 1000)
         stim = "aversive" if crashed else "reward" if passed else "none"
         best = max(best, game.score)
+        tail = attempts[-20:]
+        st_ = sum(a["steps"] for a in tail) + game.steps
+        rate_now = (sum(a["flaps"] for a in tail) + game.flaps) / st_ if st_ else FLAP_RATE
         state = {
             "wall": time.time(), "attempt": len(attempts) + 1, "score": game.score, "best": best, "steps": game.steps,
             "y": game.y, "vy": game.vy, "pipes": game.pipes, "flap": bool(flap), "passed": passed, "crashed": crashed,
             "left_hz": n["left_hz"], "right_hz": n["right_hz"], "diff_hz": d, "threshold_hz": thr, "gate": n["gate_spikes"],
             "spikes": n["total_spikes"], "compute": n["compute_seconds"], "changed_edges": n["memory"]["changed_edges"],
-            "mean_efficacy": n["memory"]["mean_efficacy"], "baseline": baseline, "level": LEVEL,
+            "mean_efficacy": n["memory"]["mean_efficacy"], "baseline": base_at(rate_now), "flap_rate": rate_now, "level": LEVEL,
             "world": {"W": W, "H": H, "GROUND": GROUND, "GAP": GAP, "PIPE_W": PIPE_W, "BIRD_X": BIRD_X, "BIRD_R": BIRD_R, "STEP_MS": STEP_MS},
         }
         Image.fromarray(frame).save(OUT / "eye.tmp.png")
