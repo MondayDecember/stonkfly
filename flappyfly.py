@@ -10,12 +10,15 @@
 для мухи это реальное время, для нас замедление примерно в 12 раз.
 
 Пишет для страницы flappy.html в runs/flappy/: state.json, attempts.jsonl, eye.png, brain.npz.
+Пауза: http://<IP>:8082/pause?s=15 (не дольше 30 с) и /resume. 3D-страница ставит игру на паузу,
+когда муха отходит от компьютера закрыть дверь. На паузе игра и мозг стоят, счёт шагов не идёт.
 Запуск: .venv/bin/python flappyfly.py   (stonkfly start запускает сам)
 """
 import json
 import os
 import signal
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -31,6 +34,8 @@ FLAP_RATE = float(os.environ.get("FLAP_RATE", 0.2))   # доля шагов со
 W, H, GROUND = 320, 180, 16
 # лёгкий режим: шире проход, медленнее трубы, мягче гравитация — больше шансов долететь и получить дофамин
 G, FLAP_V, SPEED, SPACING, GAP, PIPE_W, BIRD_X, BIRD_R = 240.0, -88.0, 45.0, 210.0, 125.0, 34, 70, 7
+PORT = int(os.environ.get("FLAPPY_PORT", 8082))
+PAUSE = {"until": 0.0}
 LEVEL = "easy-v3"   # v3: равенства П−Л решает DNpe017, планка по реальной доле взмахов
 
 
@@ -94,6 +99,38 @@ class Game:
         f[(xx - BIRD_X) ** 2 + (yy - self.y) ** 2 <= BIRD_R ** 2] = (250, 215, 40)
         f[(xx - BIRD_X - 3) ** 2 + (yy - self.y + 2) ** 2 <= 2] = (0, 0, 0)
         return f
+
+
+def control_server():
+    """Маленький сервер паузы: /pause?s=15, /resume, /state. Отвечает всем (CORS), пауза максимум 30 с."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from urllib.parse import parse_qs, urlparse
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            u = urlparse(self.path)
+            if u.path == "/pause":
+                try:
+                    sec = float(parse_qs(u.query).get("s", ["15"])[0])
+                except ValueError:
+                    sec = 15.0
+                PAUSE["until"] = time.time() + min(30.0, max(0.0, sec))
+            elif u.path == "/resume":
+                PAUSE["until"] = 0.0
+            body = json.dumps({"paused": PAUSE["until"] > time.time()}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    try:
+        ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()
+    except OSError as e:
+        print(f"пауза недоступна (порт {PORT}): {e}", flush=True)
 
 
 def random_baseline(rate, n=400, seed=1):
@@ -163,8 +200,21 @@ def main():
 
     signal.signal(signal.SIGINT, save)
     signal.signal(signal.SIGTERM, save)
-    print("Flappy Fly: играю", flush=True)
+    threading.Thread(target=control_server, daemon=True).start()
+    print(f"Flappy Fly: играю (пауза: порт {PORT})", flush=True)
+    last, was_paused = None, False
     while True:
+        if PAUSE["until"] > time.time():   # муха отошла от компьютера: игра и мозг стоят
+            if not was_paused:
+                print("пауза", flush=True)
+                was_paused = True
+            if last:
+                atomic(OUT / "state.json", json.dumps({**last, "wall": time.time(), "paused": True, "flap": False, "passed": False, "crashed": False}).encode())
+            time.sleep(0.25)
+            continue
+        if was_paused:
+            print("продолжаю", flush=True)
+            was_paused = False
         frame = game.frame()
         n = ctl.observe(frame, stim)
         d = n["difference_hz"]
@@ -189,7 +239,7 @@ def main():
             "left_hz": n["left_hz"], "right_hz": n["right_hz"], "diff_hz": d, "threshold_hz": thr, "gate": n["gate_spikes"],
             "spikes": n["total_spikes"], "compute": n["compute_seconds"], "changed_edges": n["memory"]["changed_edges"],
             "mean_efficacy": n["memory"]["mean_efficacy"], "baseline": base_at(rate_now), "flap_rate": rate_now, "level": LEVEL,
-            "world": {"W": W, "H": H, "GROUND": GROUND, "GAP": GAP, "PIPE_W": PIPE_W, "BIRD_X": BIRD_X, "BIRD_R": BIRD_R, "STEP_MS": STEP_MS},
+            "paused": False, "world": {"W": W, "H": H, "GROUND": GROUND, "GAP": GAP, "PIPE_W": PIPE_W, "BIRD_X": BIRD_X, "BIRD_R": BIRD_R, "STEP_MS": STEP_MS},
         }
         Image.fromarray(frame).save(OUT / "eye.tmp.png")
         (OUT / "eye.tmp.png").replace(OUT / "eye.png")
@@ -202,6 +252,7 @@ def main():
             if len(attempts) % 10 == 0:
                 save()
             game.reset()
+        last = state
         atomic(OUT / "state.json", json.dumps(state).encode())
 
 

@@ -213,7 +213,7 @@ const DESK_Y=.09;
 
 // ================= apartment =================
 const RX0=-8,RX1=8.5,RZ0=-3.2,RZ1=11,RY0=-1.6,RY1=5.4;
-let rainGeo=null,RAIN=0,rings=[],posterMat=null,doorPivot=null;
+let rainGeo=null,RAIN=0,rings=[],posterMat=null,doorPivot=null,DOOR_FX=null;
 function canvasTex(w,h,draw,rep=[1,1]){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(...rep);t.anisotropy=8;return t;}
 const std=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.85,...o});
 function plane(w,h,mat,pos,rot){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);m.position.set(...pos);m.rotation.set(...rot);m.receiveShadow=true;scene.add(m);return m;}
@@ -257,13 +257,12 @@ plane(WX0-RX0,H,wallMat,[(RX0+WX0)/2,(RY0+RY1)/2,RZ0],[0,0,0]);
 plane(RX1-WX1,H,wallMat,[(WX1+RX1)/2,(RY0+RY1)/2,RZ0],[0,0,0]);
 plane(WX1-WX0,WY0-RY0,wallMat,[(WX0+WX1)/2,(RY0+WY0)/2,RZ0],[0,0,0]);
 plane(WX1-WX0,RY1-WY1,wallMat,[(WX0+WX1)/2,(WY1+RY1)/2,RZ0],[0,0,0]);
-plane(RZ1-RZ0,H,wallMat,[RX0,(RY0+RY1)/2,(RZ0+RZ1)/2],[0,Math.PI/2,0]);
 plane(RZ1-RZ0,H,wallMat,[RX1,(RY0+RY1)/2,(RZ0+RZ1)/2],[0,-Math.PI/2,0]);
 plane(RX1-RX0,H,wallMat,[(RX0+RX1)/2,(RY0+RY1)/2,RZ1],[0,Math.PI,0]);
 plane(RX1-RX0,RZ1-RZ0,std(0x161a28),[(RX0+RX1)/2,RY1,(RZ0+RZ1)/2],[Math.PI/2,0,0]);
 // baseboards
 const bb=std(0x3a3f55);
-box(RX1-RX0,.25,.06,bb,[(RX0+RX1)/2,RY0+.125,RZ0+.03]);box(.06,.25,RZ1-RZ0,bb,[RX0+.03,RY0+.125,(RZ0+RZ1)/2]);box(.06,.25,RZ1-RZ0,bb,[RX1-.03,RY0+.125,(RZ0+RZ1)/2]);
+box(RX1-RX0,.25,.06,bb,[(RX0+RX1)/2,RY0+.125,RZ0+.03]);box(.06,.25,6.35-RZ0,bb,[RX0+.03,RY0+.125,(RZ0+6.35)/2]);box(.06,.25,RZ1-8.65,bb,[RX0+.03,RY0+.125,(8.65+RZ1)/2]);box(.06,.25,RZ1-RZ0,bb,[RX1-.03,RY0+.125,(RZ0+RZ1)/2]);
 // window frame, mullions, sill, glass
 const frame=std(0xd8dce8,{roughness:.5});
 box(WX1-WX0+.3,.18,.35,frame,[(WX0+WX1)/2,WY1,RZ0]);box(WX1-WX0+.3,.18,.35,frame,[(WX0+WX1)/2,WY0,RZ0]);
@@ -335,9 +334,75 @@ const posterTex=canvasTex(256,340,(g,w,h)=>{g.fillStyle='#0b0f24';g.fillRect(0,0
   g.fillStyle='#ffd06a';g.font='bold 25px monospace';g.textAlign='center';g.fillText('КУПИ ДОРОГО',w/2,285);g.fillText('ПРОДАЙ ДЁШЕВО',w/2,316);});
 posterMat=std(0xffffff,{map:posterTex,roughness:.5});plane(2.2,2.9,posterMat,[RX1-.02,2.4,1.2],[0,-Math.PI/2,0]);
 // door on left wall
-doorPivot=new THREE.Group();doorPivot.position.set(RX0+.05,RY0,6.55);scene.add(doorPivot);
-box(.08,3.8,1.9,std(0x2e2a3a),[0,1.9,.95],doorPivot);box(.12,.12,.12,std(0xc9a64a,{metalness:.9,roughness:.3}),[.07,1.8,1.6],doorPivot);
-plane(1.85,3.75,new THREE.MeshBasicMaterial({color:0xffd9a0}),[RX0+.015,RY0+1.9,7.5],[0,Math.PI/2,0]);   // свет из коридора
+doorPivot=new THREE.Group();doorPivot.position.set(RX0+.05,RY0,8.45);scene.add(doorPivot);   // петли у дальнего края: открытая дверь не закрывает проём от камеры
+box(.08,3.8,1.9,std(0x2e2a3a),[0,1.9,-.95],doorPivot);box(.12,.12,.12,std(0xc9a64a,{metalness:.9,roughness:.3}),[.07,1.8,-1.6],doorPivot);
+// ---- коридор за дверью: обои, ковёр на стене, вешалка, тапочки на все шесть лап, лампа, вход на кухню ----
+{const CX0=RX0-2.8,CZ0=1.2,CZ1=13.6,CY1=RY0+5.2,CW=RX0-CX0,CL=CZ1-CZ0,CZM=(CZ0+CZ1)/2;
+ const glowM=(map,c=0xffffff,e=.55)=>new THREE.MeshStandardMaterial({color:c,map,emissive:0xffe0b0,emissiveMap:map,emissiveIntensity:e,roughness:.9});
+ const paper=canvasTex(128,256,(g,w,h)=>{g.fillStyle='#d9c79c';g.fillRect(0,0,w,h);   // советские обои: полоски и цветочки
+   for(let x=0;x<w;x+=32){g.fillStyle='rgba(150,110,60,.18)';g.fillRect(x,0,5,h);g.fillStyle='rgba(150,110,60,.1)';g.fillRect(x+9,0,2,h);}
+   for(let y=16;y<h;y+=40)for(let x=20;x<w;x+=32){const yy=y+(x/32%2)*20;g.fillStyle='#a8743c';for(let k=0;k<5;k++){const a=k/5*Math.PI*2;g.beginPath();g.arc(x+Math.cos(a)*3.5,yy+Math.sin(a)*3.5,2.4,0,7);g.fill();}g.fillStyle='#7a4a2a';g.beginPath();g.arc(x,yy,1.6,0,7);g.fill();}
+   const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'rgba(60,35,10,.35)');gr.addColorStop(.35,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(40,25,10,.3)');g.fillStyle=gr;g.fillRect(0,0,w,h);},[1,1]);
+ const pWall=w=>{const t=paper.clone();t.needsUpdate=true;t.repeat.set(w/1.6,1);return glowM(t);};
+ plane(CL,CY1-RY0,pWall(CL),[CX0,(RY0+CY1)/2,CZM],[0,Math.PI/2,0]);                                  // дальняя стена (видна в дверь)
+ plane(CW,CY1-RY0,pWall(CW),[(CX0+RX0)/2,(RY0+CY1)/2,CZ0],[0,0,0]);                                  // торцы
+ plane(CW,CY1-RY0,pWall(CW),[(CX0+RX0)/2,(RY0+CY1)/2,CZ1],[0,Math.PI,0]);
+ plane(CL,CY1-RY0,pWall(CL),[RX0-.01,(RY0+CY1)/2,CZM],[0,-Math.PI/2,0]);                             // стена с нашей дверью (изнутри коридора)
+ const lino=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#6d4a2c';g.fillRect(0,0,w,h);for(let y=0;y<h;y+=32)for(let x=0;x<w;x+=64){const o=(y/32%2)*32;g.fillStyle=`hsl(28,38%,${22+Math.random()*6}%)`;g.fillRect(x+o,y,62,30);}},[CW/1.4,CL/1.4]);
+ plane(CW,CL,glowM(lino,0xffffff,.35),[(CX0+RX0)/2,RY0+.002,CZM],[-Math.PI/2,0,0]);
+ plane(CW,CL,std(0xcfc3a8,{emissive:0x5a4a30,roughness:.95}),[(CX0+RX0)/2,CY1,CZM],[Math.PI/2,0,0]);
+ const runner=canvasTex(64,256,(g,w,h)=>{g.fillStyle='#7a1c24';g.fillRect(0,0,w,h);g.fillStyle='#2f5a3a';g.fillRect(0,0,8,h);g.fillRect(w-8,0,8,h);g.fillStyle='#e0b060';g.fillRect(10,0,3,h);g.fillRect(w-13,0,3,h);
+   for(let y=10;y<h;y+=28){g.fillStyle='#e0b060';g.beginPath();g.moveTo(w/2,y);g.lineTo(w/2+10,y+10);g.lineTo(w/2,y+20);g.lineTo(w/2-10,y+10);g.fill();}},[1,CL/3]);
+ plane(1.3,CL-1.2,glowM(runner,0xffffff,.35),[(CX0+RX0)/2,RY0+.01,CZM],[-Math.PI/2,0,0]);
+ // ковёр на стене напротив двери
+ const kover=canvasTex(256,192,(g,w,h)=>{g.fillStyle='#7d1420';g.fillRect(0,0,w,h);g.strokeStyle='#1d2a55';g.lineWidth=14;g.strokeRect(10,10,w-20,h-20);g.strokeStyle='#e0b060';g.lineWidth=3;g.strokeRect(20,20,w-40,h-40);g.strokeRect(4,4,w-8,h-8);
+   for(let x=26;x<w-20;x+=14){g.fillStyle=x/14%2?'#e0b060':'#3a8a5a';g.beginPath();g.moveTo(x,12);g.lineTo(x+5,17);g.lineTo(x,22);g.lineTo(x-5,17);g.fill();g.beginPath();g.moveTo(x,h-22);g.lineTo(x+5,h-17);g.lineTo(x,h-12);g.lineTo(x-5,h-17);g.fill();}
+   const dia=(cx,cy,r,c)=>{g.fillStyle=c;g.beginPath();g.moveTo(cx,cy-r);g.lineTo(cx+r*1.3,cy);g.lineTo(cx,cy+r);g.lineTo(cx-r*1.3,cy);g.fill();};
+   dia(w/2,h/2,62,'#1d2a55');dia(w/2,h/2,48,'#c83a3a');dia(w/2,h/2,32,'#e0b060');dia(w/2,h/2,18,'#1d2a55');dia(w/2,h/2,7,'#f4e6c0');
+   [[52,52],[w-52,52],[52,h-52],[w-52,h-52]].forEach(([x,y])=>{dia(x,y,20,'#e0b060');dia(x,y,11,'#1d2a55');});
+   for(let i=0;i<2500;i++){g.fillStyle=`rgba(0,0,0,${Math.random()*.08})`;g.fillRect(Math.random()*w,Math.random()*h,2,2);}});
+ plane(2.6,1.95,glowM(kover,0xffffff,.45),[CX0+.02,RY0+2.35,7.9],[0,Math.PI/2,0]);
+ const S=[];const P=(w,h,d,c,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),std(c));m.position.set(x,y,z);S.push(m);return m;};
+ // вешалка с полкой, крючками и одеждой
+ P(.22,.08,2.6,0x5a3a22,CX0+.12,RY0+3.55,10.7);P(.06,.18,2.6,0x5a3a22,CX0+.03,RY0+3.25,10.7);
+ [9.7,10.4,11.1,11.8].forEach(z=>P(.18,.05,.05,0xc9a64a,CX0+.1,RY0+3.2,z));
+ const coat=(z,c,len)=>{const m=new THREE.Mesh(new THREE.CapsuleGeometry(.24,len,4,8),std(c));m.scale.set(.55,1,1);m.position.set(CX0+.2,RY0+3.1-len/2-.1,z);S.push(m);};
+ coat(9.7,0x2b3550,1.5);coat(10.4,0x6a4a30,1.3);coat(11.1,0x8a2a3a,1.1);
+ P(.1,1.2,.14,0xd9385a,CX0+.3,RY0+2.5,11.8);   // мамин шарф
+ const hat=new THREE.Mesh(new THREE.CylinderGeometry(.22,.26,.2,10),std(0x3a2a1e));hat.position.set(CX0+.2,RY0+3.72,10.1);S.push(hat);
+ // полка для обуви и тапочки: по шесть, на все лапки
+ P(.6,.08,2.8,0x5a3a22,CX0+.32,RY0+.55,10.6);P(.6,.5,.08,0x5a3a22,CX0+.32,RY0+.3,9.24);P(.6,.5,.08,0x5a3a22,CX0+.32,RY0+.3,11.96);
+ [[0xe86a9a,RY0+.65],[0x7a5a3a,RY0+.06]].forEach(([c,y],row)=>{for(let i=0;i<6;i++){const sl=new THREE.Mesh(new THREE.CapsuleGeometry(.07,.16,3,6),std(c));sl.rotation.z=Math.PI/2;sl.scale.set(1,1,.8);sl.position.set(CX0+.35,y+.05,9.55+i*.42);S.push(sl);
+   if(row===0){const pom=new THREE.Mesh(new THREE.SphereGeometry(.05,6,5),std(0xffffff));pom.position.set(CX0+.52,y+.12,9.55+i*.42);S.push(pom);}}});
+ // зеркало
+ P(.06,1.9,1.1,0x5a3a22,CX0+.03,RY0+2.2,4.6);
+ const mir=canvasTex(64,128,(g,w,h)=>{const gr=g.createLinearGradient(0,0,w,h);gr.addColorStop(0,'#c8d4e0');gr.addColorStop(.45,'#8a9aae');gr.addColorStop(.5,'#e8f0f8');gr.addColorStop(.6,'#8a9aae');gr.addColorStop(1,'#5a6a80');g.fillStyle=gr;g.fillRect(0,0,w,h);});
+ plane(.95,1.75,new THREE.MeshBasicMaterial({map:mir}),[CX0+.07,RY0+2.2,4.6],[0,Math.PI/2,0]);
+ // входная дверь в торце, коврик
+ P(.12,3.8,1.9,0x4a3020,RX0-1.4,RY0+1.9,CZ0+.07).rotation.y=Math.PI/2;P(.12,.12,.12,0xc9a64a,RX0-.8,RY0+1.8,CZ0+.18);
+ P(1.4,.03,.8,0x3a4a3a,RX0-1.4,RY0+.015,CZ0+.7);
+ // выключатель и лампа под потолком
+ P(.05,.22,.15,0xeeeeee,RX0-.04,RY0+2.3,8.9);
+ const lampShade=new THREE.Mesh(new THREE.ConeGeometry(.5,.35,12,1,true),std(0xe8d8a8,{emissive:0xffd9a0,emissiveIntensity:.6,side:THREE.DoubleSide}));lampShade.position.set(RX0-1.4,CY1-.35,7.6);S.push(lampShade);
+ P(.03,.3,.03,0x222222,RX0-1.4,CY1-.15,7.6);
+ const bulb=new THREE.Mesh(new THREE.SphereGeometry(.14,10,8),new THREE.MeshBasicMaterial({color:0xfff2d0}));bulb.position.set(RX0-1.4,CY1-.52,7.6);scene.add(bulb);
+ S.forEach(m=>scene.add(m));bake(scene,S,{emissive:0x3a2a18,roughness:.85}).castShadow=false;
+ // проём на кухню в дальнем торце: тёплый свет
+ plane(1.7,3.6,new THREE.MeshBasicMaterial({color:0xffe2a8}),[RX0-1.4,RY0+1.8,CZ1-.02],[0,Math.PI,0]);
+ // свет из коридора на пол комнаты (когда дверь открыта) и полоска под дверью (когда закрыта)
+ const spillT=canvasTex(128,128,(g,w,h)=>{const gr=g.createLinearGradient(0,0,w,0);gr.addColorStop(0,'rgba(255,215,150,.9)');gr.addColorStop(1,'rgba(255,215,150,0)');g.fillStyle=gr;
+   g.beginPath();g.moveTo(0,h*.12);g.lineTo(w,0);g.lineTo(w,h);g.lineTo(0,h*.88);g.fill();});
+ const spill=new THREE.Mesh(new THREE.PlaneGeometry(3.2,2.6),new THREE.MeshBasicMaterial({map:spillT,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+ spill.rotation.x=-Math.PI/2;spill.position.set(RX0+1.6,RY0+.015,7.5);scene.add(spill);
+ const slit=new THREE.Mesh(new THREE.PlaneGeometry(.35,1.8),new THREE.MeshBasicMaterial({map:spillT,transparent:true,opacity:.5,depthWrite:false,blending:THREE.AdditiveBlending}));
+ slit.rotation.x=-Math.PI/2;slit.position.set(RX0+.2,RY0+.012,7.5);scene.add(slit);
+ DOOR_FX=k=>{spill.material.opacity=.55*k;slit.material.opacity=.45*(1-Math.min(1,k*4));};}
+// стена с дверным проёмом, наличник, откосы
+{const DZ0=6.55,DZ1=8.45,DY=RY0+3.8;
+ plane(DZ0-RZ0,H,wallMat,[RX0,(RY0+RY1)/2,(RZ0+DZ0)/2],[0,Math.PI/2,0]);plane(RZ1-DZ1,H,wallMat,[RX0,(RY0+RY1)/2,(DZ1+RZ1)/2],[0,Math.PI/2,0]);
+ plane(DZ1-DZ0,RY1-DY,wallMat,[RX0,(DY+RY1)/2,(DZ0+DZ1)/2],[0,Math.PI/2,0]);
+ const trim=std(0x3a3448,{roughness:.6});box(.08,3.95,.16,trim,[RX0+.04,RY0+1.975,DZ0-.08]);box(.08,3.95,.16,trim,[RX0+.04,RY0+1.975,DZ1+.08]);box(.08,.16,DZ1-DZ0+.32,trim,[RX0+.04,DY+.08,(DZ0+DZ1)/2]);
+ const rev=std(0x2a2f44);box(.3,3.8,.02,rev,[RX0-.15,RY0+1.9,DZ0-.01]);box(.3,3.8,.02,rev,[RX0-.15,RY0+1.9,DZ1+.01]);box(.3,.02,DZ1-DZ0,rev,[RX0-.15,DY+.01,(DZ0+DZ1)/2]);}
 // city outside the window
 function windowTex(){const c=document.createElement('canvas');c.width=64;c.height=128;const g=c.getContext('2d');
   g.fillStyle='#0a0e22';g.fillRect(0,0,64,128);
@@ -805,8 +870,8 @@ function sonToDad(){const c=FL.cur;if(!c)return['…','Ну ладно, сыно
   if(FL.base!=null&&avg>FL.base)return['Кажется, да! Я лучше, чем наугад!','Горжусь тобой, сынок.'];
   return['Пока нет, пап. Учусь.','Ну-ну. Учись, сынок.'];}
 const FAST=qs.get('mom')==='fast',CAMFOCUS=qs.get('momcam')!=='0'&&!AUTO;
-let st='idle',st0=performance.now(),next=performance.now()+(FAST?6000:30000),crashed=false,who='mom',visits=0;
-const DOOR_IN=new THREE.Vector3(RX0-.6,.6,7.5),DOOR_OUT=new THREE.Vector3(RX0+1.6,1.1,7.9),SPOT=new THREE.Vector3(-3.4,1.45,.4),DAD_SPOT=new THREE.Vector3(RX0+.45,.35,7.7);
+let st='idle',st0=performance.now(),next=performance.now()+(qs.has('momwait')?+qs.get('momwait')*1000:FAST?6000:30000),crashed=false,who='mom',visits=0;
+const DOOR_IN=new THREE.Vector3(RX0-.6,.6,7.2),DOOR_OUT=new THREE.Vector3(RX0+1.7,1.1,6.5),SPOT=new THREE.Vector3(-3.4,1.45,.4),DAD_SPOT=new THREE.Vector3(RX0+.45,.35,7.2),DAD_OUT=new THREE.Vector3(RX0-.9,.35,7.2);
 // кадры камеры на время разговора
 // кадр «двоих»: камера сбоку от линии сын—гость, чтобы оба были в кадре
 function twoShot(B){const A=fly.getWorldPosition(new THREE.Vector3());A.y+=.3;const mid=A.clone().add(B).multiplyScalar(.5),dir=B.clone().sub(A),d=dir.length();
@@ -821,7 +886,9 @@ function camBack(k){if(!CAMFOCUS||!camFrom)return;const e=k*k*(3-2*k),cur={p:SHO
 function bez(a,b,c,k){const u=1-k;return a.clone().multiplyScalar(u*u).add(b.clone().multiplyScalar(2*u*k)).add(c.clone().multiplyScalar(k*k));}
 function bub(id,html,obj,up){const el=$(id);if(!html){el.style.display='none';return;}if(el.innerHTML!==html)el.innerHTML=html;camera.updateMatrixWorld();const p=obj.getWorldPosition(new THREE.Vector3());p.y+=up;p.project(camera);
   const ok=p.z<1&&Math.abs(p.x)<1.1&&Math.abs(p.y)<1.1;el.style.display=ok?'block':'none';if(ok){el.style.left=((p.x+1)/2*innerWidth)+'px';el.style.top=((1-p.y)/2*innerHeight)+'px';}}
-const AWAY=['notice','takeoff','go','push','proud','back','land','settle'];
+const AWAY=['notice','takeoff','go','push','proud','back','land','resume','settle'];
+const tapK=(e,a,b)=>e>a&&e<b?Math.sin((e-a)/(b-a)*Math.PI):0;   // лапка тянется к клавише и обратно
+let tapped=false;
 window.MOM_EVENT=kind=>{const e=(performance.now()-st0)/1000;   // события игры во время разговора (после 5,5 с уже не перебиваем)
   if(kind==='pass'&&st==='talk'&&e<5.5&&!crashed)passedT=true;
   if(kind!=='crash')return;if(st==='talk'&&e<5.5)crashed=true;else if(AWAY.includes(st))crashAway=true;};
@@ -829,9 +896,11 @@ const easeDoor=k=>1.35*Math.sin(Math.min(1,Math.max(0,k))*Math.PI/2);
 let talk=null,sonLine='',dadLines=null,passedT=false;
 function face(obj,x,z){obj.lookAt(x,obj.position.y,z);obj.rotateY(-Math.PI/2);}
 // ---- дверь оставили открытой: муха сама летит её закрывать ----
-const HINGE=new THREE.Vector3(RX0+.05,0,6.55),DOOR_OPEN=1.35,FLY_Y=.7;
+const HINGE=new THREE.Vector3(RX0+.05,0,8.45),DOOR_OPEN=1.35,FLY_Y=.7;
 const ez=k=>{k=Math.min(1,Math.max(0,k));return k*k*(3-2*k);};
-function pushPos(th){const r=1.25;return new THREE.Vector3(HINGE.x+r*Math.sin(th)+1.25*Math.cos(th),FLY_Y,HINGE.z+r*Math.cos(th)-1.25*Math.sin(th));}  // перед дверью, носом в неё
+// дверь открыта на угол th: полотно смотрит в (sin th, −cos th), толкать её надо со стороны нормали (cos th, sin th)
+function pushPos(th){const r=1.25;return new THREE.Vector3(HINGE.x+r*Math.sin(th)+1.25*Math.cos(th),FLY_Y,HINGE.z-r*Math.cos(th)+1.25*Math.sin(th));}  // перед дверью, носом в неё
+const setDoor=th=>{doorPivot.rotation.y=-th;},doorAng=()=>-doorPivot.rotation.y;
 const yawTo=(dx,dz)=>Math.atan2(-dz,dx);
 function angL(a,b,k){const d=Math.atan2(Math.sin(b-a),Math.cos(b-a));return a+d*k;}
 const SIGH=['Опять дверь не закрыли…','Сквозняк же!','Вот всегда так…','Ну кто дверь закрывать будет?','Родители…'],SIGH_WHO={mom:['Мам, ну дверь-то!','Мам, дверь закрой! Эх…'],dad:['Пап, ну дверь-то!','Пап, дверь закрой! Эх…']};
@@ -844,19 +913,20 @@ function flyAlong(k,t,lookEnd){ // полёт по дуге, нос по ход�
   fly.position.copy(p);fly.position.y+=Math.sin(t*9)*.03;
   let yaw=q.distanceTo(p)>1e-4?yawTo(q.x-p.x,q.z-p.z):fly.rotation.y;if(lookEnd!=null)yaw=angL(yaw,lookEnd,ez((k-.7)/.3));
   fly.rotation.y=angL(fly.rotation.y,yaw,.2);fly.rotation.z=-.18*Math.sin(Math.PI*k);}
-function finish(now){fly.position.copy(HOME.p);fly.rotation.set(0,HOME.ry,0);ENV.air=0;ENV.buzz=0;DISTRACT=0;ENV.headYaw=0;$('sonBub').style.display='none';
+function finish(now){EXTRA_TAP=0;tapped=false;if(FL.paused&&!FL.srvPaused)flappyCtl('/resume');fly.position.copy(HOME.p);fly.rotation.set(0,HOME.ry,0);ENV.air=0;ENV.buzz=0;DISTRACT=0;ENV.headYaw=0;$('sonBub').style.display='none';
   camFrom=null;st='idle';st0=now;controls.enabled=!AUTO;next=now+(FAST?20000:(150+Math.random()*150)*1000);}
 ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000;
+  if(DOOR_FX)DOOR_FX(Math.max(0,doorAng())/1.35);
   if(['takeoff','go','push','proud','back'].includes(st))camFollow();
   if(st==='idle'&&now>next){visits++;SHOT.mom=twoShot(SPOT);SHOT.dad=twoShot(DAD_SPOT.clone().setY(1.1));SHOT.door={p:new THREE.Vector3(7,4.9,-2.7).clamp(CAM_MIN,CAM_MAX),t:new THREE.Vector3(-3.5,.2,3.5)};   // из-за стола: муха спиной к нам, дверь вдали
     who=(visits%3===0||qs.get('visit')==='dad')&&qs.get('visit')!=='mom'?'dad':'mom';
-    st='door';st0=now;talk=MOM_TALK[Math.random()*MOM_TALK.length|0];sonLine=talk.s[Math.random()*talk.s.length|0];crashed=false;passedT=false;crashAway=false;dadLines=null;play('creak',0,1.2);}
+    st='door';st0=now;tapped=false;talk=MOM_TALK[Math.random()*MOM_TALK.length|0];sonLine=talk.s[Math.random()*talk.s.length|0];crashed=false;passedT=false;crashAway=false;dadLines=null;play('creak',0,1.2);}
   if(st!=='idle')controls.enabled=false;
-  if(st==='door'){doorPivot.rotation.y=easeDoor(e/1.2);camTo(SHOT[who],Math.min(1,e/1.2));
+  if(st==='door'){setDoor(easeDoor(e/1.2));camTo(SHOT[who],Math.min(1,e/1.2));
     if(e>1.2){st='enter';st0=now;(who==='mom'?mom:dad).visible=true;if(who==='mom')play('wing',0,3);}}
   else if(st==='enter'){const k=Math.min(1,e/(who==='mom'?3:1.2));
     if(who==='mom'){mom.position.copy(bez(DOOR_IN,DOOR_OUT,SPOT,k));face(mom,fly.position.x,fly.position.z);liveFly(mom,t,dt,true);}
-    else{dad.position.lerpVectors(new THREE.Vector3(RX0-.9,.35,7.7),DAD_SPOT,k);face(dad,dad.position.x+1,dad.position.z-.35);liveFly(dad,t,dt,false,true);}
+    else{dad.position.lerpVectors(DAD_OUT,DAD_SPOT,k);face(dad,dad.position.x+1,dad.position.z-.35);liveFly(dad,t,dt,false,true);}
     if(k>=1){st='talk';st0=now;}}
   else if(st==='talk'){DISTRACT=1;ENV.headYaw=Math.min(who==='mom'?.9:1.4,e*1.5);
     if(who==='mom'){liveFly(mom,t,dt,e>8.7);mom.position.y=SPOT.y+Math.sin(t*2)*.05;mom.userData.buzz=Math.max(mom.userData.buzz,.6);
@@ -868,22 +938,23 @@ ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000;
     if(e>(who==='mom'?9.4:8.2)){st='leave';st0=now;$('momBub').style.display=$('sonBub').style.display='none';if(who==='mom')play('wing',0,3);}}
   else if(st==='leave'){const k=Math.min(1,e/(who==='mom'?3:1.2));   // уходят и дверь не закрывают
     if(who==='mom'){mom.position.copy(bez(SPOT,DOOR_OUT,DOOR_IN,k));face(mom,DOOR_IN.x,DOOR_IN.z);liveFly(mom,t,dt,true);}
-    else{dad.position.lerpVectors(DAD_SPOT,new THREE.Vector3(RX0-.9,.35,7.7),k);liveFly(dad,t,dt,false,true);}
+    else{dad.position.lerpVectors(DAD_SPOT,DAD_OUT,k);liveFly(dad,t,dt,false,true);}
     ENV.headYaw=Math.max(.5,(ENV.headYaw||0)-dt*1.5);if(k>=1){st='notice';st0=now;mom.visible=dad.visible=false;
       HOME={p:fly.position.clone(),ry:fly.rotation.y};{const L=SIGH.concat(SIGH_WHO[who]);sigh=who==='mom'&&/сквозняк/.test(talk.m)?'Мам! Сама же про сквозняк говорила!':L[Math.random()*L.length|0];}done=DONE[Math.random()*DONE.length|0];}}
   else if(st==='notice'){camMove(SHOT[who],{p:SHOT.door.p,t:SHOT.door.t.clone().lerp(fly.position,.3)},e/1.6);ENV.headYaw=.5+.2*Math.sin(e*3);   // смотрит на открытую дверь, вздыхает
-    bub('sonBub',e>.3?'<b>МУХА</b>'+sigh:'',head,.5);
-    if(e>2.6){st='takeoff';st0=now;flyFrom=HOME.p.clone();flyTo=HOME.p.clone().add(new THREE.Vector3(0,1.3,0));play('wing',0,10.8);}}
+    bub('sonBub',e>.3?'<b>МУХА</b>'+(e<1.9?sigh:'Так, ставлю на паузу…'):'',head,.5);
+    EXTRA_TAP=tapK(e,1.8,2.5);if(e>2.15&&!tapped){tapped=true;pressKey(0,0xffd06a);play('pause');flappyCtl('/pause?s=25');}   // жмёт паузу перед уходом
+    if(e>3){st='takeoff';EXTRA_TAP=0;st0=now;flyFrom=HOME.p.clone();flyTo=HOME.p.clone().add(new THREE.Vector3(0,1.3,0));play('wing',0,10.8);}}
   else if(st==='takeoff'){const k=Math.min(1,e/.9);ENV.air=k;ENV.buzz=Math.min(1,k*2);ENV.headYaw=Math.max(0,.5-k);
-    fly.position.lerpVectors(flyFrom,flyTo,ez(k));fly.position.y+=Math.sin(t*9)*.03*k;bub('sonBub',k<.6?'<b>МУХА</b>'+sigh:'',head,.5);
+    fly.position.lerpVectors(flyFrom,flyTo,ez(k));fly.position.y+=Math.sin(t*9)*.03*k;bub('sonBub','',head,.5);
     const P=pushPos(DOOR_OPEN);fly.rotation.y=angL(HOME.ry,yawTo(P.x-HOME.p.x,P.z-HOME.p.z),ez((k-.3)/.7));
-    if(k>=1){st='go';st0=now;flyFrom=fly.position.clone();flyTo=pushPos(DOOR_OPEN);flyCtl=flyFrom.clone().lerp(flyTo,.5);flyCtl.y+=1.4;}}
-  else if(st==='go'){const k=Math.min(1,e/2.6);flyAlong(k,t,yawTo(-Math.cos(DOOR_OPEN),Math.sin(DOOR_OPEN)));
+    if(k>=1){st='go';st0=now;flyFrom=fly.position.clone();flyTo=pushPos(DOOR_OPEN);flyCtl=flyFrom.clone().lerp(flyTo,.5);flyCtl.y+=1.4;flyCtl.z+=1.2;}}   // дугой, в обход открытой двери
+  else if(st==='go'){const k=Math.min(1,e/2.6);flyAlong(k,t,yawTo(-Math.cos(DOOR_OPEN),-Math.sin(DOOR_OPEN)));
     if(k>=1){st='push';st0=now;slammed=false;play('creak',0,1.5);}}
   else if(st==='push'){const k=Math.min(1,e/1.7),kk=k*k,th=DOOR_OPEN*(1-kk);   // толкает дверь носом, ускоряясь
-    doorPivot.rotation.y=th;fly.position.copy(pushPos(th));fly.position.y+=Math.sin(t*9)*.02;fly.rotation.y=yawTo(-Math.cos(th),Math.sin(th));fly.rotation.z=-.08;
-    if(k>=1&&!slammed){slammed=true;doorPivot.rotation.y=0;play('slam');st='proud';st0=now;}}
-  else if(st==='proud'){doorPivot.rotation.y=e<.25?.03*Math.sin(e*40)*(1-e/.25):0;   // дверь вздрогнула от удара
+    setDoor(th);fly.position.copy(pushPos(th));fly.position.y+=Math.sin(t*9)*.02;fly.rotation.y=yawTo(-Math.cos(th),-Math.sin(th));fly.rotation.z=-.08;
+    if(k>=1&&!slammed){slammed=true;setDoor(0);play('slam');st='proud';st0=now;}}
+  else if(st==='proud'){setDoor(e<.25?.03*Math.abs(Math.sin(e*40))*(1-e/.25):0);   // дверь вздрогнула от удара
     const P=pushPos(0),back=Math.min(1,e/.5)*.45;fly.position.set(P.x+back,FLY_Y+Math.sin(t*9)*.03,P.z);fly.rotation.z=angL(fly.rotation.z,0,.1);
     bub('sonBub',e>.3?'<b>МУХА</b>'+done:'',head,.5);
     if(e>2){st='back';st0=now;flyFrom=fly.position.clone();flyTo=HOME.p.clone().add(new THREE.Vector3(0,1.3,0));flyCtl=flyFrom.clone().lerp(flyTo,.5);flyCtl.y+=1.2;}}
@@ -891,10 +962,13 @@ ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000;
     if(k>=1){st='land';st0=now;flyFrom=fly.position.clone();fly.rotation.z=0;}}
   else if(st==='land'){const k=Math.min(1,e/1.1);ENV.air=1-ez(k);ENV.buzz=Math.max(0,1-k*1.3);
     fly.position.lerpVectors(flyFrom,HOME.p,ez(k));fly.rotation.y=angL(fly.rotation.y,HOME.ry,.2);if(camFrom)camMove({p:SHOT.door.p,t:SHOT.door.t.clone().lerp(flyFrom,.3)},camFrom,k);
-    if(k>=1){if(crashAway){fly.position.copy(HOME.p);fly.rotation.set(0,HOME.ry,0);ENV.air=0;ENV.buzz=0;st='settle';st0=now;}else finish(now);}}
+    if(k>=1){fly.position.copy(HOME.p);fly.rotation.set(0,HOME.ry,0);ENV.air=0;ENV.buzz=0;st='resume';st0=now;tapped=false;}}
+  else if(st==='resume'){EXTRA_TAP=tapK(e,.3,1);ENV.headYaw=0;bub('sonBub',e>.2&&e<1.9?'<b>МУХА</b>Так, продолжаем!':'',head,.5);   // снимает с паузы
+    if(e>.65&&!tapped){tapped=true;pressKey(0,0x3dff9a);play('unpause');flappyCtl('/resume');}
+    if(e>2){EXTRA_TAP=0;if(crashAway){st='settle';st0=now;}else finish(now);}}
   else if(st==='settle'){bub('sonBub',e<3?'<b>МУХА</b>Пока дверь закрывал — разбился…':'',head,.5);if(e>3)finish(now);}};
-if(qs.has('debug')){window.__cam=(P,T,d)=>{camera.position.set(...P);controls.target.set(...T);camera.lookAt(controls.target);if(d!=null)doorPivot.rotation.y=d;};window.__shot=()=>SHOT;}
-if(qs.has('debug'))window.__dbg=()=>({st,e:(performance.now()-st0)/1000,fly:fly.position.toArray().map(v=>+v.toFixed(2)),door:+doorPivot.rotation.y.toFixed(2)});
+if(qs.has('debug')){window.__cam=(P,T,d)=>{camera.position.set(...P);controls.target.set(...T);camera.lookAt(controls.target);if(d!=null)doorPivot.rotation.y=-d;};window.__shot=()=>SHOT;}
+if(qs.has('debug'))window.__dbg=()=>({st,e:(performance.now()-st0)/1000,fly:fly.position.toArray().map(v=>+v.toFixed(2)),door:+(-doorPivot.rotation.y).toFixed(2)});
 ENV.ownsCamera=()=>st!=='idle'&&CAMFOCUS;
 } // ======== /МАМА ========
 
@@ -1127,6 +1201,8 @@ async function flappyPoll(){try{const s=await getJSON('runs/flappy/state.json');
 async function flappyAttempts(){try{const r=await fetch('runs/flappy/attempts.jsonl?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;
   FL.attempts=(await r.text()).split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l);}catch{return null;}}).filter(Boolean);flCurve();}catch{}}
 function flappyState(s){
+  if(s.paused){if(!FL.cur){FL.cur=s;FL.tRecv=performance.now();}if(!FL.paused){FL.paused=true;FL.srvPaused=true;}return;}   // игра на паузе: муха отошла
+  if(FL.srvPaused){FL.srvPaused=false;FL.paused=false;FL.tRecv=performance.now();FL.cur=s;FL.prev=null;return;}
   if(FL.cur&&s.attempt!==FL.cur.attempt)FL.prev=null;else FL.prev=FL.cur;
   if(FL.cur)FL.interval=Math.min(4000,Math.max(300,(performance.now()-FL.tRecv)*.7+FL.interval*.3));FL.cur=s;FL.tRecv=performance.now();
   $('flsc').textContent=s.score;if(s.baseline!=null){FL.base=s.baseline;$('flbase').textContent=s.baseline.toFixed(2)+(s.flap_rate!=null?` · взмахов ${Math.round(s.flap_rate*100)}%`:'');}$('flatt').textContent='#'+s.attempt;$('flbest').textContent=s.best;
@@ -1136,6 +1212,9 @@ function flappyState(s){
   if((s.passed||s.crashed||FL.tickerAt!==s.attempt)&&ENV.redraw){FL.tickerAt=s.attempt;ENV.redraw();}
   if(s.passed){if(window.MOM_EVENT)MOM_EVENT('pass');flapFx={t0:performance.now(),kind:'reward'};play('fpass');play('reward',.35);toast('+1<small>труба пройдена · дофамин</small>','BUY');}
   if(s.crashed){if(window.MOM_EVENT)MOM_EVENT('crash');flapFx={t0:performance.now(),kind:'crash'};play('fcrash');toast(`БАМ!<small>попытка #${s.attempt}: ${s.score} · наказание</small>`,'SELL');}}
+// пауза игры на сервере flappyfly.py (порт 8082): муха нажимает её, когда уходит от компьютера
+function flappyCtl(path){FL.paused=path.startsWith('/pause');if(!location.hostname||qs.has('demo'))return;
+  fetch(`${location.protocol}//${location.hostname}:${qs.get('flport')||8082}${path}`,{mode:'no-cors',cache:'no-store'}).catch(()=>{});}
 function flCurve(){const c=$('flcurve'),g=c.getContext('2d'),W=c.width,H=c.height,a=FL.attempts;g.clearRect(0,0,W,H);if(!a.length)return;
   const n=a.length,mx=Math.max(3,...a.map(x=>x.score)),X=i=>6+(W-12)*(n<2?.5:i/(n-1)),Y=v=>H-6-(H-12)*v/mx;
   g.fillStyle='#56618a';a.forEach((x,i)=>g.fillRect(X(i)-1,Y(x.score)-1,3,3));
@@ -1176,6 +1255,8 @@ function drawFlappyScreen(){const s=FL.cur,g=scrC.getContext('2d'),W=1024,H=600;
   drawGameFly(g,tt,s.flap);g.restore();
   g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=3;g.font='bold 26px monospace';g.textAlign='center';g.strokeText(s.score,w.W/2,28);g.fillText(s.score,w.W/2,28);g.textAlign='left';
   g.restore();
+  if(FL.paused){g.fillStyle='rgba(5,8,20,.55)';g.fillRect(0,56,W,H-56);g.fillStyle='#fff';g.textAlign='center';g.font='bold 90px monospace';g.fillText('ПАУЗА',W/2,H/2+20);
+    g.font='26px monospace';g.fillStyle='#ffd06a';g.fillText('муха отошла закрыть дверь',W/2,H/2+70);g.textAlign='left';}
   if(SCREEN==='crt'){g.globalCompositeOperation='multiply';g.fillStyle='#3cff70';g.fillRect(0,0,W,H);g.globalCompositeOperation='source-over';g.fillStyle='rgba(0,0,0,.35)';for(let yy=0;yy<H;yy+=4)g.fillRect(0,yy,W,2);}
   scrT.needsUpdate=true;}
 function crtify(g,W,H){const im=g.getImageData(0,0,W,H),d=im.data;   // зелёный люминофор + строки развёртки
@@ -1254,6 +1335,8 @@ const SFX={
   fflap(t){noiz(t,.12,{g:.3,f:1100,q:1.4,a:.01});tone(420,t,.09,{type:'square',g:.035,to:760,lp:2400});},
   fpass(t){tone(988,t,.09,{type:'square',g:.16,lp:5000});tone(1319,t+.08,.32,{type:'square',g:.16,lp:5000});tone(2637,t+.1,.25,{g:.05});},
   fcrash(t){tone(160,t,.4,{g:.5,to:40});noiz(t,.28,{g:.45,type:'lowpass',f:900});tone(330,t+.02,.35,{type:'triangle',g:.14,to:110});tone(900,t+.18,.7,{g:.05,to:180});},
+  pause(t){[880,660].forEach((f,i)=>tone(f,t+i*.12,.14,{type:'square',g:.08,lp:3000}));},
+  unpause(t){[660,880,1175].forEach((f,i)=>tone(f,t+i*.09,.14,{type:'square',g:.08,lp:3000}));},
   note(t,f,acc){tone(f,t,.55,{type:'triangle',g:acc?.07:.04});tone(f*2,t,.25,{g:acc?.02:.01});},
   bell(t){[880,1320,1760].forEach((f,i)=>tone(f,t,2.2-i*.5,{type:'sine',g:.05/(i+1)}));},
   choir(t){[261.6,329.6,392,523.2].forEach((f,i)=>[-6,0,7].forEach(dt=>{const o=AC.createOscillator(),bp=AC.createBiquadFilter(),v=AC.createGain();o.type='sawtooth';o.frequency.value=f;o.detune.value=dt;

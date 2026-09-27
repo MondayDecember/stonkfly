@@ -107,7 +107,10 @@ function brainNote(s){if(qs.get('music')==='0'||s.diff_hz==null)return;NOTE_H.pu
   play('note',PENTA[Math.min(9,Math.floor(NOTE_H.filter(v=>v<s.diff_hz).length/NOTE_H.length*10))],s.flap);}
 
 // ---------- новый шаг мозга ----------
+let paused=false;
 function onState(s){
+  if(s.paused){if(!cur){cur=s;prev=null;}const m=$('msg');m.innerHTML='ПАУЗА<small>муха отошла закрыть дверь</small>';m.style.color='#ffd06a';m.style.textShadow='0 0 1rem #ffd06a';m.style.opacity=1;clearTimeout(msgT);paused=true;return;}
+  if(paused){paused=false;$('msg').style.opacity=0;cur=s;prev=null;tRecv=performance.now();return;}   // после паузы: без рывка и без ложных событий
   if(cur&&s.attempt!==cur.attempt)prev=null;else prev=cur;
   if(cur)interval=Math.min(4000,Math.max(300,(performance.now()-tRecv)*.7+interval*.3));
   cur=s;tRecv=performance.now();
