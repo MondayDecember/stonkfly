@@ -43,6 +43,12 @@ P
     echo "  страница: $(URL)"
     ;;
   logs)     tmux attach -t stonkfly 2>/dev/null || echo "Не запущено." ;;
+  flappy)   cmd.exe /c start "" "http://$(IP):8080/flappy.html" 2>/dev/null; echo "http://$(IP):8080/flappy.html" ;;
+  ask)      shift; curl -s -X POST "http://127.0.0.1:8081/ask" -H 'Content-Type: application/json' \
+              -d "$(python3 -c 'import json,sys;print(json.dumps({"q":" ".join(sys.argv[1:]),"who":"Игорь"}))' "$@")" \
+              | python3 -c 'import json,sys;print(json.load(sys.stdin)["msg"])' || echo "Оракул не запущен." ;;
+  dream)    tail -n 3 runs/dreams/status.json 2>/dev/null; echo; ls -t runs/dreams/*.png 2>/dev/null | head -3 ;;
+  apps)     shift; if [ $# -eq 0 ]; then echo "Сейчас: $(cat apps.conf 2>/dev/null || echo 'flappy oracle dreams')"; else echo "$*" > apps.conf; echo "Будут запущены: $*. Примени: stonkfly restart"; fi ;;
   season)   ./new-season.sh ;;
   update)
     echo "Скачиваю обновления с GitHub…"
@@ -73,6 +79,10 @@ stonkfly — управление мухой
   stonkfly stop      остановить
   stonkfly restart   перезапустить
   stonkfly season    закончить сезон и начать новый с \$100
+  stonkfly flappy    открыть Flappy Fly
+  stonkfly ask ТЕКСТ спросить муху-оракула
+  stonkfly dream     как дела со снами (ComfyUI)
+  stonkfly apps …    какие мухи запускать, например: stonkfly apps "flappy oracle"
   stonkfly update    скачать обновления с GitHub
   stonkfly import    взять новые файлы из Загрузки\\stonkfly-kit и отправить на GitHub
 T

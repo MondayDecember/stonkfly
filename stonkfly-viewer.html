@@ -47,7 +47,7 @@ th{color:var(--dim);font-weight:500}
   <div class="card stat"><div class="v" id="sEq">–</div><div class="l">баланс, USDC</div></div>
   <div class="card stat"><div class="v" id="sPnl">–</div><div class="l">P&amp;L от старта</div></div>
   <div class="card stat"><div class="v" id="sTrades">–</div><div class="l">сделок (buy / sell)</div></div>
-  <div class="card stat"><div class="v" id="sSyn">–</div><div class="l">синапсов изменено всего</div></div>
+  <div class="card stat"><div class="v" id="sSyn">–</div><div class="l">синапсов памяти изменено (из 7 835)</div></div>
 </div>
 
 <div class="grid">
@@ -154,7 +154,7 @@ function render(){
   $('sPnl').textContent=(d>=0?'+':'')+fmt(d,2); $('sPnl').style.color=css(d>=0?'--buy':'--sell');
   const f=rows.filter(x=>x.execution.status==='FILLED');
   $('sTrades').innerHTML=`<span class="BUY">${f.filter(x=>x.neural.side==='BUY').length}</span> / <span class="SELL">${f.filter(x=>x.neural.side==='SELL').length}</span>`;
-  $('sSyn').textContent=fmt(rows.reduce((a,x)=>a+(x.neural.memory?.changed_edges||0),0),0);
+  $('sSyn').textContent=fmt(rows.at(-1).neural.memory?.changed_edges??0,0);
   const s=r.neural.side; $('side').textContent={BUY:'КУПИТЬ',SELL:'ПРОДАТЬ',HOLD:'ДЕРЖАТЬ'}[s]; $('side').className='big '+s;
   $('sideSub').textContent=`${r.product} · ${r.execution.status}${r.execution.reason?' ('+r.execution.reason+')':''} · разница L−R ${fmt(r.neural.difference_hz,1)} Гц`;
   $('eye').src=base+'latest-input.png?t='+Date.now();

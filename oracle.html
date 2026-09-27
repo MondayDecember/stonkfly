@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Муха-оракул</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;background:#05070f;color:#dfe8ff;font-family:"Courier New",ui-monospace,monospace;display:flex;justify-content:center}
+main{width:min(640px,100%);padding:16px;box-sizing:border-box}
+h1{font-size:28px;letter-spacing:.12em;margin:8px 0 2px;text-shadow:0 0 12px #6af}
+.sub{color:#8595c0;font-size:13px;margin-bottom:16px;line-height:1.4}
+form{display:flex;flex-direction:column;gap:8px;background:rgba(5,10,25,.85);border:1px solid #2a3d6b;padding:14px}
+input,button{font:inherit;font-size:16px;padding:10px;background:#0b1430;color:#e8eeff;border:1px solid #2a3d6b}
+button{background:#1a3a7a;cursor:pointer;letter-spacing:.1em}button:disabled{opacity:.5}
+#msg{min-height:1.2em;font-size:14px;color:#ffd06a}
+#now{margin:16px 0;padding:14px;border:1px solid #2a3d6b;background:rgba(5,10,25,.85);text-align:center}
+#now .q{font-size:16px;color:#9fb3e8}#now .a{font-size:44px;letter-spacing:.15em;margin-top:6px}
+.YES{color:#3dff9a;text-shadow:0 0 12px #3dff9a}.NO{color:#ff5470;text-shadow:0 0 12px #ff5470}.MAYBE{color:#ffd06a}
+.item{border-bottom:1px solid #16213f;padding:8px 2px;display:flex;justify-content:space-between;gap:10px}
+.item span{color:#9fb3e8}.item small{display:block;color:#56618a;font-size:12px}
+</style>
+</head>
+<body>
+<main>
+  <h1>МУХА-ОРАКУЛ</h1>
+  <div class="sub">Задай вопрос, на который можно ответить «да» или «нет». Настоящий мозг мухи (166 700 нейронов) посмотрит на него и ответит нейронами DNp20. Это эксперимент и шутка: муха не читает и не понимает слов, она видит буквы как картинку.</div>
+  <form id="f">
+    <input id="q" maxlength="120" placeholder="Например: Биткоин вырастет завтра?" required>
+    <input id="who" maxlength="32" placeholder="Твоё имя (необязательно)">
+    <button id="b">СПРОСИТЬ МУХУ</button>
+    <div id="msg"></div>
+  </form>
+  <div id="now"><div class="q">загрузка…</div></div>
+  <div id="list"></div>
+</main>
+<script>
+const $=id=>document.getElementById(id),CLS={'ДА':'YES','НЕТ':'NO','НЕ УВЕРЕНА':'MAYBE'};
+try{$('who').value=localStorage.getItem('oracle-who')||'';}catch{}
+$('f').onsubmit=async e=>{e.preventDefault();$('b').disabled=true;try{localStorage.setItem('oracle-who',$('who').value);}catch{}
+  try{const r=await fetch('ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q:$('q').value,who:$('who').value})});
+    const j=await r.json();$('msg').textContent=j.msg;if(j.ok)$('q').value='';}catch{$('msg').textContent='оракул не отвечает';}
+  $('b').disabled=false;poll();};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function poll(){try{const s=await (await fetch('state?t='+Date.now())).json();
+  const last=s.answers[0];
+  $('now').innerHTML=!s.ready?'<div class="q">муха просыпается и калибруется, около минуты…</div>'
+    :s.current?`<div class="q">муха думает над вопросом «${esc(s.current.q)}»…</div><div class="a MAYBE">…</div>`
+    :last?`<div class="q">«${esc(last.q)}» · ${esc(last.who)}</div><div class="a ${CLS[last.ans]}">${last.ans}</div>`:'<div class="q">задай первый вопрос</div>';
+  $('list').innerHTML=(s.queue?`<div class="item"><span>в очереди вопросов: ${s.queue}</span></div>`:'')+s.answers.map(a=>`<div class="item"><div>${esc(a.q)}<small>${esc(a.who)} · ${new Date(a.answered*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})} · П−Л ${a.diff>0?'+':''}${a.diff} Гц от нормы</small></div><span class="${CLS[a.ans]}">${a.ans}</span></div>`).join('');
+}catch{$('now').innerHTML='<div class="q">оракул не запущен</div>';}}
+poll();setInterval(poll,3000);
+</script>
+</body>
+</html>

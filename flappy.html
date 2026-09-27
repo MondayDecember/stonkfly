@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>FLAPPY FLY</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html{font-size:clamp(10px,calc(100vw/120),26px)}
+html,body{margin:0;height:100%;background:#05070f;color:#dfe8ff;font-family:"Courier New",ui-monospace,monospace;overflow:hidden}
+#wrap{display:grid;grid-template-columns:1fr 24rem;grid-template-rows:1fr 11rem;gap:1rem;height:100vh;box-sizing:border-box;padding:1rem}
+.panel{background:rgba(5,10,25,.85);border:1px solid #2a3d6b;box-shadow:0 0 1.2rem rgba(80,140,255,.18);padding:.8rem 1rem;position:relative}
+.h{font-size:.8rem;color:#9fb3e8;border-left:.2rem solid #5cf;padding-left:.45rem;margin-bottom:.5rem;display:flex;justify-content:space-between}
+#game{grid-row:1;grid-column:1;padding:0;overflow:hidden}
+#gc{width:100%;height:100%;display:block}
+#title{position:absolute;left:1rem;top:.7rem;font-size:1.6rem;letter-spacing:.15em;text-shadow:0 0 .8rem #6af}
+#title small{display:block;font-size:.72rem;letter-spacing:.02em;color:#9fb3e8;text-shadow:none;margin-top:.2rem}
+#score{position:absolute;left:50%;top:1rem;transform:translateX(-50%);font-size:4rem;font-weight:bold;color:#fff;text-shadow:0 .2rem 0 #000,0 0 1rem #000}
+#eye{position:absolute;right:.8rem;top:.8rem;width:14rem;border:1px solid #2a3d6b;background:#000}
+#eye img{width:100%;display:block;image-rendering:pixelated}
+#eye div{font-size:.62rem;color:#9fb3e8;padding:.15rem .3rem}
+#msg{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);font-size:2.6rem;letter-spacing:.1em;text-align:center;opacity:0;transition:opacity .3s;pointer-events:none}
+#msg small{display:block;font-size:1rem;color:#dfe8ff;letter-spacing:.03em;margin-top:.3rem}
+#side{grid-row:1/3;grid-column:2;display:flex;flex-direction:column;gap:1rem}
+.big{font-size:2.6rem}
+.row{display:flex;justify-content:space-between;font-size:.9rem;margin-top:.3rem;color:#9fb3e8}.row b{color:#e8eeff;font-weight:normal;font-variant-numeric:tabular-nums}
+.bar{height:.7rem;background:#0b1430;border-radius:.3rem;position:relative;margin:.25rem 0 .5rem}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:.3rem;transition:width .3s}
+.bar s{position:absolute;top:-.2rem;bottom:-.2rem;width:2px;background:#ff5470}
+#flap{margin-top:.5rem;text-align:center;font-size:1.4rem;letter-spacing:.2em;padding:.3rem;border:1px solid #2a3d6b;color:#56618a}
+#flap.on{color:#3dff9a;border-color:#3dff9a;text-shadow:0 0 .6rem #3dff9a}
+#curve{grid-row:2;grid-column:1}
+#cc{width:100%;height:calc(100% - 1.4rem);display:block}
+.lg{font-size:.7rem;color:#8595c0}.lg i{display:inline-block;width:.9rem;height:.2rem;vertical-align:middle;margin:0 .3rem 0 .7rem}
+#note{font-size:.72rem;color:#8595c0;line-height:1.4}
+.up{color:#3dff9a}.dn{color:#ff5470}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="game" class="panel">
+    <canvas id="gc"></canvas>
+    <div id="title">FLAPPY FLY<small id="src">загрузка…</small></div>
+    <div id="score">0</div>
+    <div id="eye"><img id="eyeImg" alt=""><div>ГЛАЗАМИ МУХИ: этот кадр видит её сетчатка</div></div>
+    <div id="msg"></div>
+  </div>
+  <div id="side">
+    <div class="panel">
+      <div class="h"><span>ПОПЫТКА</span><span id="att">—</span></div>
+      <div class="big" id="sc">0 труб</div>
+      <div class="row"><span>рекорд</span><b id="best">—</b></div>
+      <div class="row"><span>среднее за 50 попыток</span><b id="avg">—</b></div>
+      <div class="row"><span>среднее за первые 50</span><b id="avg0">—</b></div>
+      <div class="row"><span>всего попыток</span><b id="tot">—</b></div>
+    </div>
+    <div class="panel">
+      <div class="h"><span>МОЗГ МУХИ</span><span id="ms">—</span></div>
+      <div class="row"><span>DNp20 левый</span><b id="lh">—</b></div><div class="bar"><i id="lb" style="background:#6ab8ff"></i></div>
+      <div class="row"><span>DNp20 правый</span><b id="rh">—</b></div><div class="bar"><i id="rb" style="background:#6ab8ff"></i></div>
+      <div class="row"><span>разница П−Л / порог</span><b id="dh">—</b></div><div class="bar"><i id="db" style="background:#ffd06a"></i><s id="ds"></s></div>
+      <div id="flap">ВЗМАХ</div>
+      <div class="row"><span>спайков за шаг</span><b id="sp">—</b></div>
+      <div class="row"><span>память: изменено</span><b id="mem">—</b></div>
+    </div>
+    <div class="panel" id="note">Настоящий коннектом дрозофилы (MaleCNS, 166 700 нейронов) видит игру через свои фоторецепторы. Взмах — когда правый нейрон DNp20 стреляет заметно сильнее левого, чем обычно. Пройденная труба — дофамин (PAM11), удар — нейроны наказания (PPL101), синапсы памяти меняются. Для мухи игра идёт в реальном времени её мозга, мы смотрим в замедлении. Научится ли она — неизвестно, это эксперимент.</div>
+  </div>
+  <div id="curve" class="panel"><div class="h"><span>КРИВАЯ ОБУЧЕНИЯ: трубы за попытку</span><span class="lg"><i style="background:#56618a"></i>попытка<i style="background:#ffd06a"></i>среднее за 20<i style="background:#3dff9a"></i>рекорд</span></div><canvas id="cc"></canvas></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const qs=new URLSearchParams(location.search);
+const BASE='runs/flappy/';
+let cur=null,prev=null,tRecv=0,interval=1000,attempts=[],demo=false,lastWall=0;
+const gc=$('gc'),g=gc.getContext('2d'),cc=$('cc'),c2=cc.getContext('2d');
+function fit(){for(const c of [gc,cc]){c.width=c.clientWidth*devicePixelRatio;c.height=c.clientHeight*devicePixelRatio;}}
+addEventListener('resize',()=>{fit();drawCurve();});fit();
+const fmt=(n,d=0)=>Number(n).toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});
+async function getJSON(u){const r=await fetch(u+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;return r.json();}
+
+// ---------- звук ----------
+let AC=null;function ac(){if(!AC)try{AC=new AudioContext();}catch{}AC&&AC.resume();}
+addEventListener('pointerdown',ac);addEventListener('keydown',ac);
+function beep(f,d,type='square',v=.06,to){if(!AC||AC.state!=='running')return;const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);
+  g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+d);}
+
+// ---------- новый шаг мозга ----------
+function onState(s){
+  if(cur&&s.attempt!==cur.attempt)prev=null;else prev=cur;
+  if(cur)interval=Math.min(4000,Math.max(300,(performance.now()-tRecv)*.7+interval*.3));
+  cur=s;tRecv=performance.now();
+  $('score').textContent=s.score;$('att').textContent='#'+s.attempt;$('sc').textContent=s.score+' '+plural(s.score);
+  $('best').textContent=s.best;$('lh').textContent=s.left_hz.toFixed(1)+' Гц';$('rh').textContent=s.right_hz.toFixed(1)+' Гц';
+  const mx=Math.max(60,s.left_hz,s.right_hz);$('lb').style.width=s.left_hz/mx*100+'%';$('rb').style.width=s.right_hz/mx*100+'%';
+  const span=30,pos=v=>Math.min(100,Math.max(0,(v+span)/(2*span)*100));
+  $('dh').textContent=(s.diff_hz>=0?'+':'')+s.diff_hz.toFixed(1)+' / '+(s.threshold_hz??0).toFixed(1);
+  $('db').style.left=Math.min(pos(0),pos(s.diff_hz))+'%';$('db').style.width=Math.abs(pos(s.diff_hz)-pos(0))+'%';$('ds').style.left=pos(s.threshold_hz??0)+'%';
+  $('flap').className=s.flap?'on':'';$('sp').textContent=fmt(s.spikes);$('mem').textContent=s.changed_edges!=null?fmt(s.changed_edges)+' из 7 835':'—';
+  $('ms').textContent=(s.world.STEP_MS|0)+' мс мозга · счёт '+(s.compute??0).toFixed(1)+' с';
+  if(!demo)$('eyeImg').src=BASE+'eye.png?t='+Date.now();
+  if(s.flap)beep(880,.08,'square',.04,1200);
+  if(s.passed){beep(1320,.25,'triangle',.08);flash('+1','#3dff9a','труба пройдена · дофамин');}
+  if(s.crashed){beep(200,.5,'sawtooth',.08,60);flash('БАМ!','#ff5470',`попытка #${s.attempt}: ${s.score} ${plural(s.score)} · наказание`);}
+}
+function plural(n){n=Math.abs(n)%100;const k=n%10;return n>10&&n<20?'труб':k===1?'труба':k>=2&&k<=4?'трубы':'труб';}
+let msgT;function flash(t,col,sub){const m=$('msg');m.innerHTML=t+'<small>'+sub+'</small>';m.style.color=col;m.style.textShadow='0 0 1rem '+col;m.style.opacity=1;clearTimeout(msgT);msgT=setTimeout(()=>m.style.opacity=0,1600);}
+
+// ---------- отрисовка игры (плавно между шагами мозга) ----------
+function draw(){requestAnimationFrame(draw);if(!cur)return;
+  const w=cur.world,W=gc.width,H=gc.height,S=Math.min(W/w.W,H/w.H),ox=(W-w.W*S)/2,oy=(H-w.H*S)/2;
+  const a=Math.min(1,(performance.now()-tRecv)/interval),L=(p,q)=>p+(q-p)*a;
+  g.fillStyle='#05070f';g.fillRect(0,0,W,H);g.save();g.translate(ox,oy);g.scale(S,S);
+  const sky=g.createLinearGradient(0,0,0,w.H);sky.addColorStop(0,'#2b5fae');sky.addColorStop(1,'#96ccff');g.fillStyle=sky;g.fillRect(0,0,w.W,w.H);
+  // облака
+  g.fillStyle='rgba(255,255,255,.35)';const drift=(performance.now()/1000*6)%400;[[40,30],[170,50],[280,22],[360,60]].forEach(([x,y])=>{const X=((x-drift)%400+400)%400-40;g.beginPath();g.ellipse(X,y,22,7,0,0,7);g.ellipse(X+14,y-4,14,6,0,0,7);g.fill();});
+  // трубы
+  for(const p of cur.pipes){const q=prev&&prev.pipes.find(o=>Math.abs(o[1]-p[1])<1e-6);const x=q?L(q[0],p[0]):p[0],gy=p[1],t=gy-w.GAP/2,b=gy+w.GAP/2;
+    const pg=g.createLinearGradient(x,0,x+w.PIPE_W,0);pg.addColorStop(0,'#2a9a44');pg.addColorStop(.5,'#5fd070');pg.addColorStop(1,'#1f7a34');g.fillStyle=pg;
+    g.fillRect(x,0,w.PIPE_W,t);g.fillRect(x,b,w.PIPE_W,w.H-w.GROUND-b);g.fillStyle='#1c6a2e';g.fillRect(x-3,t-8,w.PIPE_W+6,8);g.fillRect(x-3,b,w.PIPE_W+6,8);}
+  // земля
+  g.fillStyle='#cdb46e';g.fillRect(0,w.H-w.GROUND,w.W,w.GROUND);g.fillStyle='#a8904f';for(let x=-((performance.now()/1000*20)%12);x<w.W;x+=12)g.fillRect(x,w.H-w.GROUND,6,3);
+  // муха вместо птички
+  const y=prev?L(prev.y,cur.y):cur.y,vy=cur.vy,tt=performance.now()/1000;g.save();g.translate(w.BIRD_X,y);g.rotate(Math.max(-.5,Math.min(.9,vy/260)));
+  g.fillStyle='rgba(220,235,255,.55)';const fl=Math.sin(tt*(cur.flap?60:14))*.5+.5;
+  g.beginPath();g.ellipse(-3,-5-fl*3,9,3.5,-.5-fl*.6,0,7);g.fill();g.beginPath();g.ellipse(-3,-3-fl*2,8,3,-.2-fl*.4,0,7);g.fill();
+  g.fillStyle='#b08c5c';g.beginPath();g.ellipse(-4,0,8,5,0,0,7);g.fill();
+  g.fillStyle='#2e2218';for(let i=0;i<3;i++)g.fillRect(-9+i*4,-4,1.6,8);
+  g.fillStyle='#8a6a42';g.beginPath();g.arc(4,-1,4.2,0,7);g.fill();
+  g.fillStyle='#c0182a';g.beginPath();g.arc(7,-2,3,0,7);g.fill();g.restore();
+  g.restore();}
+draw();
+
+// ---------- кривая обучения ----------
+function drawCurve(){const W=cc.width,H=cc.height;c2.clearRect(0,0,W,H);if(!attempts.length)return;
+  const n=attempts.length,mx=Math.max(3,...attempts.map(a=>a.score)),P=8*devicePixelRatio,X=i=>P+(W-2*P)*(n<2?.5:i/(n-1)),Y=v=>H-P-(H-2*P)*v/mx;
+  c2.strokeStyle='#16213f';c2.lineWidth=1;for(let k=0;k<=mx;k+=Math.max(1,Math.ceil(mx/4))){c2.beginPath();c2.moveTo(P,Y(k));c2.lineTo(W-P,Y(k));c2.stroke();c2.fillStyle='#56618a';c2.font=11*devicePixelRatio+'px monospace';c2.fillText(k,2,Y(k)-2);}
+  c2.fillStyle='#56618a';attempts.forEach((a,i)=>{c2.fillRect(X(i)-1,Y(a.score)-1,2.5,2.5);});
+  c2.strokeStyle='#ffd06a';c2.lineWidth=2*devicePixelRatio;c2.beginPath();attempts.forEach((a,i)=>{const s=attempts.slice(Math.max(0,i-19),i+1),m=s.reduce((x,y)=>x+y.score,0)/s.length;i?c2.lineTo(X(i),Y(m)):c2.moveTo(X(i),Y(m));});c2.stroke();
+  c2.strokeStyle='#3dff9a';c2.lineWidth=1.5*devicePixelRatio;c2.beginPath();let b=0;attempts.forEach((a,i)=>{b=Math.max(b,a.score);i?c2.lineTo(X(i),Y(b)):c2.moveTo(X(i),Y(b));});c2.stroke();
+  const avg=a=>a.length?(a.reduce((x,y)=>x+y.score,0)/a.length):0;
+  $('avg').textContent=avg(attempts.slice(-50)).toFixed(2);$('avg0').textContent=avg(attempts.slice(0,50)).toFixed(2);$('tot').textContent=fmt(n);}
+
+// ---------- данные ----------
+async function poll(){
+  if(!demo){try{const s=await getJSON(BASE+'state.json');if(s.wall!==lastWall){lastWall=s.wall;onState(s);}
+      const age=Math.round(Date.now()/1000-s.wall);$('src').textContent=age>30?`муха не отвечает ${age} с…`:'настоящий мозг мухи играет во Flappy Bird';return;}
+    catch{if(!cur){demo=true;startDemo();}}}}
+async function pollAttempts(){if(demo)return;try{const r=await fetch(BASE+'attempts.jsonl?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+  attempts=(await r.text()).split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l);}catch{return null;}}).filter(Boolean);drawCurve();}catch{}}
+setInterval(poll,250);setInterval(pollAttempts,4000);poll();pollAttempts();
+
+// ---------- демо без мухи (GitHub Pages): та же физика, случайные взмахи ----------
+function startDemo(){$('src').textContent='ДЕМО: случайные взмахи (живая муха играет у автора)';$('eye').style.display='none';
+  const w={W:320,H:180,GROUND:16,GAP:84,PIPE_W:34,BIRD_X:70,BIRD_R:7,STEP_MS:80};let st,att=0,best=0;
+  const reset=()=>{att++;st={y:90,vy:0,score:0,steps:0,pipes:[[260,40+Math.random()*80]]};};reset();
+  setInterval(()=>{const flap=Math.random()<.2,dt=.08;if(flap)st.vy=-125;st.vy+=380*dt;st.y+=st.vy*dt;if(st.y<7){st.y=7;st.vy=0;}
+    let passed=false;st.pipes.forEach(p=>{const o=p[0];p[0]-=70*dt;if(o+34>=70&&70>p[0]+34){st.score++;passed=true;}});
+    if(st.pipes.at(-1)[0]<155)st.pipes.push([320,62+Math.random()*60]);st.pipes=st.pipes.filter(p=>p[0]>-34);
+    let crashed=st.y+7>164;st.pipes.forEach(([x,gy])=>{if(x-7<70&&70<x+41&&!(gy-35<st.y&&st.y<gy+35))crashed=true;});
+    best=Math.max(best,st.score);const d=(Math.random()-.5)*20;
+    onState({wall:Date.now()/1000,attempt:att,score:st.score,best,y:st.y,vy:st.vy,pipes:st.pipes.map(p=>[...p]),flap,passed,crashed,left_hz:40,right_hz:40+d,diff_hz:d,threshold_hz:5,spikes:600000,compute:1,changed_edges:null,world:w});
+    if(crashed){attempts.push({attempt:att,score:st.score});drawCurve();reset();}},700);}
+</script>
+</body>
+</html>

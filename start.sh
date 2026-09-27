@@ -6,6 +6,15 @@ if ! tmux has-session -t stonkfly 2>/dev/null; then
   # помощники перезапускаются сами, если упадут
   tmux new-window  -t stonkfly -n web   "while true; do python3 -m http.server 8080 --bind 0.0.0.0; echo 'сервер упал, перезапуск'; sleep 5; done"
   tmux new-window  -t stonkfly -n brain "while true; do .venv/bin/python brainmap.py; echo 'карта мозга упала, перезапуск'; sleep 10; done"
+  # дополнительные мухи (у каждой свой мозг); выключить: stonkfly apps "oracle dreams" и т.п.
+  APPS="flappy oracle dreams"; [ -f apps.conf ] && APPS="$(cat apps.conf)"
+  delay=0
+  for app in $APPS; do
+    [ -f "$app.py" ] || { [ "$app" = flappy ] && [ -f flappyfly.py ]; } || continue
+    f="$app.py"; [ "$app" = flappy ] && f=flappyfly.py
+    delay=$((delay+40))   # по очереди: сначала торговая муха собирает ядро, без пика нагрузки
+    tmux new-window -t stonkfly -n "$app" "sleep $delay; while true; do .venv/bin/python $f; echo '$app упал, перезапуск'; sleep 15; done"
+  done
   echo "Муха запущена."
 else
   echo "Уже работает."
@@ -14,6 +23,8 @@ IP=$(hostname -I | awk '{print $1}')
 cat <<T
 
   3D-сцена:        http://localhost:8080/stonkfly-3d.html
+  Flappy Fly:      http://$IP:8080/flappy.html
+  Муха-оракул:     http://$IP:8081/
   для OBS/стрима:  http://localhost:8080/stonkfly-3d.html?stream=1
   если localhost не открывается — http://$IP:8080/stonkfly-3d.html?stream=1
 
