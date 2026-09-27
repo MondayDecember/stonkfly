@@ -324,8 +324,8 @@ const posterTex=canvasTex(256,340,(g,w,h)=>{g.fillStyle='#0b0f24';g.fillRect(0,0
   g.fillStyle='#ffd06a';g.font='bold 25px monospace';g.textAlign='center';g.fillText('КУПИ ДОРОГО',w/2,285);g.fillText('ПРОДАЙ ДЁШЕВО',w/2,316);});
 posterMat=std(0xffffff,{map:posterTex,roughness:.5});plane(2.2,2.9,posterMat,[RX1-.02,2.4,1.2],[0,-Math.PI/2,0]);
 // door on left wall
-doorPivot=new THREE.Group();doorPivot.position.set(RX0+.05,RY0,8.45);scene.add(doorPivot);
-box(.08,3.8,1.9,std(0x2e2a3a),[0,1.9,-.95],doorPivot);box(.12,.12,.12,std(0xc9a64a,{metalness:.9,roughness:.3}),[.07,1.8,-1.6],doorPivot);
+doorPivot=new THREE.Group();doorPivot.position.set(RX0+.05,RY0,6.55);scene.add(doorPivot);
+box(.08,3.8,1.9,std(0x2e2a3a),[0,1.9,.95],doorPivot);box(.12,.12,.12,std(0xc9a64a,{metalness:.9,roughness:.3}),[.07,1.8,1.6],doorPivot);
 plane(1.85,3.75,new THREE.MeshBasicMaterial({color:0xffd9a0}),[RX0+.015,RY0+1.9,7.5],[0,Math.PI/2,0]);   // свет из коридора
 // city outside the window
 function windowTex(){const c=document.createElement('canvas');c.width=64;c.height=128;const g=c.getContext('2d');
@@ -785,7 +785,7 @@ function sonToDad(){const c=FL.cur;if(!c)return['…','Ну ладно, сыно
   return['Пока нет, пап. Учусь.','Ну-ну. Учись, сынок.'];}
 const FAST=qs.get('mom')==='fast',CAMFOCUS=qs.get('momcam')!=='0'&&!AUTO;
 let st='idle',st0=performance.now(),next=performance.now()+(FAST?6000:30000),crashed=false,who='mom',visits=0;
-const DOOR_IN=new THREE.Vector3(RX0-.6,.6,7.5),DOOR_OUT=new THREE.Vector3(RX0+1.6,1.1,7.2),SPOT=new THREE.Vector3(-3.4,1.45,.4),DAD_SPOT=new THREE.Vector3(RX0+.9,.35,7.5);
+const DOOR_IN=new THREE.Vector3(RX0-.6,.6,7.5),DOOR_OUT=new THREE.Vector3(RX0+1.6,1.1,7.9),SPOT=new THREE.Vector3(-3.4,1.45,.4),DAD_SPOT=new THREE.Vector3(RX0+.45,.35,7.7);
 // кадры камеры на время разговора
 // кадр «двоих»: камера сбоку от линии сын—гость, чтобы оба были в кадре
 function twoShot(B){const A=fly.getWorldPosition(new THREE.Vector3());A.y+=.3;const mid=A.clone().add(B).multiplyScalar(.5),dir=B.clone().sub(A),d=dir.length();
@@ -801,7 +801,7 @@ function bez(a,b,c,k){const u=1-k;return a.clone().multiplyScalar(u*u).add(b.clo
 function bub(id,html,obj,up){const el=$(id);if(!html){el.style.display='none';return;}el.innerHTML=html;const p=obj.getWorldPosition(new THREE.Vector3());p.y+=up;p.project(camera);
   const ok=p.z<1&&Math.abs(p.x)<1.1&&Math.abs(p.y)<1.1;el.style.display=ok?'block':'none';if(ok){el.style.left=((p.x+1)/2*innerWidth)+'px';el.style.top=((1-p.y)/2*innerHeight)+'px';}}
 window.MOM_EVENT=kind=>{if(st==='talk'&&kind==='crash')crashed=true;};
-const easeDoor=k=>-1.35*Math.sin(Math.min(1,Math.max(0,k))*Math.PI/2);
+const easeDoor=k=>1.35*Math.sin(Math.min(1,Math.max(0,k))*Math.PI/2);
 let momLine='',sonLine='',dadLines=null;
 function face(obj,x,z){obj.lookAt(x,obj.position.y,z);obj.rotateY(-Math.PI/2);}
 ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000;
@@ -812,7 +812,7 @@ ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000;
     if(e>1.2){st='enter';st0=now;(who==='mom'?mom:dad).visible=true;}}
   else if(st==='enter'){const k=Math.min(1,e/(who==='mom'?3:1.2));
     if(who==='mom'){mom.position.copy(bez(DOOR_IN,DOOR_OUT,SPOT,k));face(mom,fly.position.x,fly.position.z);liveFly(mom,t,dt,true);}
-    else{dad.position.lerpVectors(new THREE.Vector3(RX0-.8,.35,7.5),DAD_SPOT,k);face(dad,fly.position.x,fly.position.z);liveFly(dad,t,dt,false,true);}
+    else{dad.position.lerpVectors(new THREE.Vector3(RX0-.9,.35,7.7),DAD_SPOT,k);face(dad,dad.position.x+1,dad.position.z-.35);liveFly(dad,t,dt,false,true);}
     if(k>=1){st='talk';st0=now;}}
   else if(st==='talk'){DISTRACT=1;ENV.headYaw=Math.min(who==='mom'?.9:1.4,e*1.5);
     if(who==='mom'){liveFly(mom,t,dt,e>7.5);mom.position.y=SPOT.y+Math.sin(t*2)*.05;mom.userData.buzz=Math.max(mom.userData.buzz,.6);
@@ -824,7 +824,7 @@ ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000;
     if(e>8.2){st='leave';st0=now;$('momBub').style.display=$('sonBub').style.display='none';}}
   else if(st==='leave'){const k=Math.min(1,e/(who==='mom'?3:1.2));
     if(who==='mom'){mom.position.copy(bez(SPOT,DOOR_OUT,DOOR_IN,k));face(mom,DOOR_IN.x,DOOR_IN.z);liveFly(mom,t,dt,true);}
-    else{dad.position.lerpVectors(DAD_SPOT,new THREE.Vector3(RX0-.8,.35,7.5),k);liveFly(dad,t,dt,false,true);}
+    else{dad.position.lerpVectors(DAD_SPOT,new THREE.Vector3(RX0-.9,.35,7.7),k);liveFly(dad,t,dt,false,true);}
     DISTRACT=0;ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);if(k>=1){st='close';st0=now;mom.visible=dad.visible=false;}}
   else if(st==='close'){doorPivot.rotation.y=easeDoor(1-e/1.2);ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);camBack(Math.min(1,e/1.2));
     if(e>1.2){doorPivot.rotation.y=0;st='idle';st0=now;controls.enabled=!AUTO;next=now+(FAST?20000:(150+Math.random()*150)*1000);}}};
