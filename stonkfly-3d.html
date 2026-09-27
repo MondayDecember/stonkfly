@@ -52,6 +52,11 @@ canvas{display:block}
 #flhud canvas{width:100%;height:5rem;display:block;margin-top:.5rem;border-top:1px solid #16213f}
 #flflap{margin-top:.4rem;text-align:center;letter-spacing:.2em;border:1px solid #2a3d6b;color:#56618a;padding:.15rem}#flflap.on{color:#3dff9a;border-color:#3dff9a;text-shadow:0 0 .5rem #3dff9a}
 #sermon{position:fixed;left:50%;bottom:5.5rem;transform:translateX(-50%);max-width:46rem;text-align:center;font-size:1.25rem;line-height:1.35;color:#fff4d8;text-shadow:0 0 .6rem #000,0 .1rem .2rem #000;display:none;transition:opacity .6s;font-style:italic}
+#preach{right:1.5rem;top:1.3rem;width:21rem;display:none}#preach .s{font-size:2.2rem;letter-spacing:.1em;color:#ffe6b0;text-shadow:0 0 .6rem #ffb040;text-align:right}
+#preach .s.think{color:#c8d4ff;text-shadow:0 0 .6rem #6a8cff;animation:bl 1.4s infinite}#preach .s.say{color:#fff4d8}
+#preach .row{display:flex;justify-content:space-between;gap:.8rem;font-size:.85rem;margin-top:.25rem;color:#9fb3e8}#preach .row b{color:#e8eeff;font-weight:normal;text-align:right}
+#flock{right:1.5rem;bottom:1.3rem;width:30rem;font-size:.85rem;display:none}#flock .h{display:flex;justify-content:space-between;color:#9fb3e8;font-size:.8rem;margin-bottom:.3rem}
+#flock div.t{display:grid;grid-template-columns:3.5rem 7rem 1fr;padding:.12rem 0;border-bottom:1px solid #16213f}#flock .nm{color:#ffd66a}
 #toast{position:fixed;left:50%;top:20%;transform:translate(-50%,-50%) scale(.8);font-size:3.4rem;letter-spacing:.12em;opacity:0;transition:all .35s;text-align:center;pointer-events:none}
 #toast small{display:block;font-size:1.1rem;letter-spacing:.05em;color:#dfe8ff;margin-top:.3rem}
 #toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
@@ -106,6 +111,11 @@ canvas{display:block}
   <div class="row"><span>DNp20 лев / прав</span><b id="fllr">—</b></div><div id="flflap">ВЗМАХ</div>
   <canvas id="flcurve" width="600" height="160"></canvas><div class="row"><span style="font-size:.68rem">трубы за попытку · жёлтая линия: среднее за 20</span></div></div>
 <div id="sermon"></div>
+<div id="preach" class="panel"><div class="s" id="prState">СЛУШАЕТ ТИШИНУ</div>
+  <div class="row"><span>тема</span><b id="prTheme">—</b></div><div class="row"><span>настроение мозга</span><b id="prMood">—</b></div>
+  <div class="row"><span>DNp20 лев / прав</span><b id="prLR">—</b></div><div class="row"><span>сказано проповедей</span><b id="prSaid">0</b></div>
+  <div class="row"><span>слушателей</span><b>40</b></div></div>
+<div id="flock" class="panel"><div class="h"><span>ПАСТВА ВНИМАЕТ</span><span>вдохновлено: <b id="fkN">0</b></span></div><div id="fkList"></div></div>
 <div id="toast"></div>
 <div id="fps" style="position:fixed;right:1.5rem;top:12rem;font-size:.8rem;color:#3dff9a;background:rgba(0,0,0,.6);padding:.2rem .5rem;display:none"></div>
 <button id="snd" style="position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);font:inherit;font-size:1rem;color:#dfe8ff;background:rgba(5,10,25,.9);border:1px solid #5cf;padding:.5rem 1rem;cursor:pointer;display:none">🔊 включить звук</button>
@@ -135,7 +145,7 @@ if(qs.get('view')==='clean'){VIEW.brain=false;VIEW.season=false;}
 if(qs.get('view')==='full'){VIEW.brain=true;VIEW.season=true;}
 if(qs.has('brain'))VIEW.brain=qs.get('brain')!=='0';
 if(qs.has('season'))VIEW.season=qs.get('season')!=='0';
-function applyView(save){$('season').style.display=VIEW.season&&MODE==='trade'?'':'none';
+function applyView(save){$('season').style.display=VIEW.season&&MODE==='trade'&&LOC!=='mount'?'':'none';
   if(typeof holo!=='undefined'){holo.visible=(VIEW.brain&&MODE!=='flappy'&&LOC!=='mount')||LOC==='brain';proj.visible=VIEW.brain&&LOC!=='brain'&&LOC!=='mount'&&MODE!=='flappy';$('brainCap').style.visibility=MODE==='flappy'?'hidden':'';$('brainCap').style.display=VIEW.brain?'':'none';labels.forEach(l=>l.el.style.visibility=VIEW.brain?'':'hidden');}
   if(save&&!qs.has('view'))try{localStorage.setItem('stonkfly-view',JSON.stringify(VIEW));}catch{}}
 addEventListener('keydown',e=>{if(e.code==='KeyO'){VIEW.oracle=!VIEW.oracle;applyView(true);}if(e.code==='KeyD'){VIEW.dream=!VIEW.dream;$('dream').style.display=VIEW.dream&&dreamSeen?'block':'none';applyView(true);}if(e.code==='KeyB'){VIEW.brain=!VIEW.brain;applyView(true);}if(e.code==='KeyS'){VIEW.season=!VIEW.season;applyView(true);}});
@@ -672,19 +682,71 @@ if(SERMON>=2){   // прямой вариант: заповеди блаженс
     const cloud=[];for(let i=0;i<9;i++){const c=new THREE.Mesh(new THREE.IcosahedronGeometry(3+Math.random()*2,1),new THREE.MeshStandardMaterial({color:0xfff4e0,emissive:0x604830,flatShading:true,roughness:1}));
       c.position.set(-2+(Math.random()-.5)*14,24+Math.random()*3,-4+(Math.random()-.5)*10);c.scale.y=.45;cloud.push(c);}bake(scene,cloud,{flatShading:true,roughness:1,emissive:0x3a2a18});}
 }
-const pick=a=>a[Math.random()*a.length|0];let sermonT=0,gestT=0,gestEnd=0;
-function speak(text){const el=$('sermon');el.style.display='block';el.style.opacity=0;setTimeout(()=>{el.textContent='«'+text+'»';el.style.opacity=1;},300);sermonT=performance.now();gestEnd=performance.now()+2200;}
-setTimeout(()=>speak(pick(SAY.idle)),1500);
-ENV.onTick=r=>{const n=r.neural;let line;
-  if(n.stimulus==='reward'){line=pick(SAY.reward);if(SERMON===3)play('choir');CROWD.forEach(f=>{f.userData.buzz=1;if(Math.random()<.3)f.userData.hop=0;});}
-  else if(n.stimulus==='aversive'){line=pick(SAY.aversive);CROWD.forEach(f=>f.userData.look=(Math.random()-.5)*.8);}
-  else if(n.side!=='HOLD')line=r.execution.status==='FILLED'?pick(SAY[n.side]):pick(SAY.veto);
-  if(line)speak(line);};
+const pick=a=>a[Math.random()*a.length|0];let sermonT=-1e9,gestEnd=0;
+// ---- панели проповеди вместо торговых ----
+['stats','ticker','season'].forEach(id=>$(id).style.display='none');$('preach').style.display='block';$('flock').style.display='block';
+$('disc').textContent='настоящий коннектом мухи дрозофилы · о чём сказать, решает её мозг (нейроны DNp20, дофамин, наказание) · пародия, не религиозный текст';
+const NAMES=['Жужа','Зина','Муся','Бзик','Жужик','Фасетка','Крылька','Лапка','Мухаил','Жужанна','Жулька','Звенислава','Гудок','Мошка','Пыльца','Зуля','Бизя','Капля','Искорка','Жан-Жуж'];
+CROWD.forEach((f,i)=>f.userData.name=NAMES[i%NAMES.length]+(i>=NAMES.length?' '+(1+(i/NAMES.length|0)):''));
+const REACT={
+  fly:['взлетела от восторга','захлопала крыльями','подпрыгнула и зажужжала','расправила крылья'],
+  rest:['сложила крылья и задумалась','тихо присела на травинку','прикрыла глаза','кивнула и успокоилась'],
+  joy:['радостно зажужжала','закружилась на месте','потёрла лапки от счастья'],
+  sad:['утешилась','прослезилась, но улыбнулась','прижалась к соседке'],
+  wise:['кивнула','задумалась','почистила лапки в знак согласия','вдохновилась','шепнула соседке: «истинно»','запомнила каждое слово']};
+const THEME={fly:'о полёте',rest:'об отдыхе',joy:'о радости',sad:'об утешении',wise:'о мудрости',no:'о смирении'};
+const ST={said:0,inspired:0,feed:[]};window.MOUNT_ST=ST;
+// ---- облачко мысли над головой ----
+const thC=document.createElement('canvas');thC.width=256;thC.height=160;const thT=new THREE.CanvasTexture(thC);thT.colorSpace=THREE.SRGBColorSpace;
+const bubble=new THREE.Group();scene.add(bubble);bubble.visible=false;
+const big=new THREE.Sprite(new THREE.SpriteMaterial({map:thT,transparent:true,depthWrite:false}));big.scale.set(1.6,1,1);big.position.set(.9,.95,0);bubble.add(big);
+[[.2,.15,.14],[.45,.42,.2]].forEach(([x,y,r])=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');g.fillStyle='#fffdf4';g.strokeStyle='#8a7a5a';g.lineWidth=4;g.beginPath();g.arc(32,32,26,0,7);g.fill();g.stroke();
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false}));sp.scale.setScalar(r);sp.position.set(x,y,0);bubble.add(sp);});
+function drawThought(t){const g=thC.getContext('2d');g.clearRect(0,0,256,160);g.fillStyle='#fffdf4';g.strokeStyle='#8a7a5a';g.lineWidth=5;
+  g.beginPath();[[70,80,50],[128,58,58],[188,80,50],[100,110,42],[160,112,42]].forEach(([x,y,r])=>{g.moveTo(x+r,y);g.arc(x,y,r,0,7);});g.fill();g.stroke();
+  g.beginPath();[[70,80,47],[128,58,55],[188,80,47],[100,110,39],[160,112,39]].forEach(([x,y,r])=>{g.moveTo(x+r,y);g.arc(x,y,r,0,7);});g.fill();
+  g.fillStyle='#5a4a30';for(let i=0;i<3;i++){const on=((t*3|0)%4)>i;g.globalAlpha=on?1:.25;g.beginPath();g.arc(98+i*30,86,9,0,7);g.fill();}g.globalAlpha=1;thT.needsUpdate=true;}
+// ---- искорки над вдохновлёнными ----
+const sparkC=document.createElement('canvas');sparkC.width=sparkC.height=64;{const g=sparkC.getContext('2d');g.fillStyle='#ffd66a';g.shadowColor='#ffb020';g.shadowBlur=14;g.font='bold 50px sans-serif';g.textAlign='center';g.fillText('✦',32,48);}
+const sparkMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(sparkC),transparent:true,depthWrite:false});const SPARKS=[];
+function inspire(kind){const n=2+(Math.random()*3|0),now=performance.now();
+  for(let k=0;k<n;k++){const f=pick(CROWD),u=f.userData;
+    if(kind==='fly'||kind==='joy'){u.buzz=1;if(Math.random()<.6)u.hop=0;}else if(kind==='rest'||kind==='sad'){u.look=(Math.random()-.5)*.4;u.groom=kind==='rest'?1:0;}else{u.look=(Math.random()-.5)*.6;if(Math.random()<.4)u.groom=1;}
+    const sp=new THREE.Sprite(sparkMat);sp.scale.setScalar(.45);scene.add(sp);SPARKS.push({sp,f,t0:now});
+    ST.inspired++;ST.feed.unshift({t:new Date(),who:u.name,what:pick(REACT[kind]||REACT.wise)});}
+  ST.feed=ST.feed.slice(0,7);drawFlock();}
+function drawFlock(){$('fkN').textContent=fmt(ST.inspired,0);
+  $('fkList').innerHTML=ST.feed.map(e=>`<div class="t"><span>${e.t.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span><span class="nm">${e.who}</span><span>${e.what}</span></div>`).join('')||'<div class="t"><span></span><span></span><span>паства ждёт первого слова</span></div>';}
+// ---- думает, потом говорит ----
+let phase='idle',phaseT=0,pending=null;const THINK_MS=3200;
+function speak(text,kind='wise'){if(phase==='think'){pending={text,kind};return;}   // не перебиваем мысль
+  phase='think';phaseT=performance.now();pending={text,kind};bubble.visible=true;
+  const el=$('sermon');el.style.display='block';el.style.opacity=.55;el.textContent='…муха размышляет…';
+  $('prState').textContent='ДУМАЕТ';$('prState').className='s think';$('prTheme').textContent=THEME[kind];}
+function say(){const {text,kind}=pending;pending=null;phase='say';phaseT=performance.now();bubble.visible=false;
+  const el=$('sermon');el.style.opacity=0;setTimeout(()=>{el.textContent='«'+text+'»';el.style.opacity=1;},250);
+  sermonT=performance.now();gestEnd=performance.now()+2400;ST.said++;$('prSaid').textContent=fmt(ST.said,0);
+  $('prState').textContent='ГОВОРИТ';$('prState').className='s say';play('bell');setTimeout(()=>inspire(kind),1200);}
+setTimeout(()=>speak(pick(SAY.idle),'wise'),1500);
+ENV.onTick=r=>{const n=r.neural;
+  const d=n.right_hz-n.left_hz;$('prLR').textContent=`${n.left_hz.toFixed(0)} / ${n.right_hz.toFixed(0)} Гц ${d>2?'→ зовёт лететь':d<-2?'← зовёт отдохнуть':'· в раздумье'}`;
+  $('prMood').textContent=n.stimulus==='reward'?'радость (дофамин)':n.stimulus==='aversive'?'печаль (наказание)':'покой';
+  if(n.stimulus==='reward'){if(SERMON===3)play('choir');speak(pick(SAY.reward),'joy');}
+  else if(n.stimulus==='aversive'){CROWD.forEach(f=>f.userData.look=(Math.random()-.5)*.8);speak(pick(SAY.aversive),'sad');}
+  else if(n.side==='BUY')speak(r.execution.status==='FILLED'?pick(SAY.BUY):pick(SAY.veto),r.execution.status==='FILLED'?'fly':'no');
+  else if(n.side==='SELL')speak(r.execution.status==='FILLED'?pick(SAY.SELL):pick(SAY.veto),r.execution.status==='FILLED'?'rest':'no');};
 ENV.gesture=(out,headW,fwd)=>{out.copy(headW).add(fwd.clone().multiplyScalar(.55)).add(new THREE.Vector3(0,.75,0));};   // лапка поднята к слушателям
+ENV.headTilt=0;setTimeout(drawFlock,0);
 ENV.update=(t,dt)=>{const now=performance.now();
-  if(now-sermonT>11000)speak(pick(SAY.idle));
-  EXTRA_TAP=now<gestEnd?Math.sin(Math.min(1,(gestEnd-now)/2200)*Math.PI):0;
+  if(phase==='think'){const k=Math.min(1,(now-phaseT)/THINK_MS);ENV.headTilt=.28*Math.sin(Math.min(1,k*3)*Math.PI/2);   // голова приподнята: думает
+    head.getWorldPosition(bubble.position);bubble.position.y+=.25;bubble.scale.setScalar(.6+.4*Math.min(1,k*4));if(frameN%4===0)drawThought(t);
+    if(k>=1)say();}
+  else{ENV.headTilt*=.9;if(phase==='say'&&now-phaseT>5000){phase='idle';$('prState').textContent='СЛУШАЕТ ТИШИНУ';$('prState').className='s';}}
+  if(phase!=='think'&&now-sermonT>14000)speak(pick(SAY.idle),'wise');
+  EXTRA_TAP=now<gestEnd?Math.sin(Math.min(1,(gestEnd-now)/2400)*Math.PI):0;
   CROWD.forEach(f=>liveFly(f,t,dt,false,true));
+  for(let i=SPARKS.length-1;i>=0;i--){const o=SPARKS[i],k=(now-o.t0)/3500;if(k>=1){scene.remove(o.sp);SPARKS.splice(i,1);continue;}
+    o.f.getWorldPosition(o.sp.position);o.sp.position.y+=.9+k*.8;o.sp.material.opacity=1;o.sp.scale.setScalar(.45*(1-k*.5)*(1+.15*Math.sin(t*8)));}
   if(ENV.halo){ENV.halo.lookAt(camera.position);ENV.halo.children[1].material.opacity=.3+Math.sin(t*1.5)*.08;}
   if(ENV.rays)ENV.rays.forEach((r,i)=>r.material.opacity=.022+Math.sin(t*.4+i)*.01);};
 } // ======== /MOUNT ========
@@ -961,7 +1023,7 @@ function dur(s){s=Math.max(0,s|0);const h=s/3600|0,m=(s%3600)/60|0;return h?`${h
 let toastT;
 function toast(html,cls){const t=$('toast');t.className=cls||'';t.innerHTML=html;void t.offsetWidth;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),3200);}
 function hud(){
-  const r=rows.at(-1);if(!r)return;const n=r.neural;
+  const r=rows.at(-1);if(!r||LOC==='mount')return;const n=r.neural;
   $('side').textContent=RU.side[n.side];$('side').className='s '+n.side;
   const e0=+rows[0].equity_usdc,e=+r.equity_usdc,d=e-e0;
   $('eq').textContent=fmt(e)+' USDC';$('pnl').textContent=(d>=0?'+':'')+fmt(d)+` (${(d/e0*100).toFixed(2)}%)`;$('pnl').className=d>=0?'up':'dn';
@@ -1003,6 +1065,7 @@ const SFX={
   buy(t){[988,1319].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:4000}));tone(1976,t+.16,.5,{g:.08});},
   sell(t){[1319,988].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:3000}));tone(494,t+.16,.5,{type:'triangle',g:.15});},
   flap(t){tone(760,t,.06,{type:'square',g:.04,lp:3000});},
+  bell(t){[880,1320,1760].forEach((f,i)=>tone(f,t,2.2-i*.5,{type:'sine',g:.05/(i+1)}));},
   choir(t){[261.6,329.6,392,523.2].forEach((f,i)=>[-6,0,7].forEach(dt=>{const o=AC.createOscillator(),bp=AC.createBiquadFilter(),v=AC.createGain();o.type='sawtooth';o.frequency.value=f;o.detune.value=dt;
     bp.type='bandpass';bp.frequency.value=800+i*120;bp.Q.value=4;v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(.022,t+.9);v.gain.linearRampToValueAtTime(0,t+3.2);o.connect(bp).connect(v).connect(MASTER);o.start(t);o.stop(t+3.3);}));},
   veto(t){[0,.14].forEach(d=>tone(140,t+d,.12,{type:'square',g:.15,lp:900}));},
@@ -1027,10 +1090,12 @@ const RU={
     'Fee ceiling exceeded':'слишком большая комиссия','STOP file present':'остановлено вручную','Execution stopped':'торговля остановлена'}};
 const ruReason=r=>RU.reason[r]||r;
 function announce(r){
+  if(LOC==='mount')return;
   {const n=r.neural,ex=r.execution;
    if(n.stimulus==='reward')play('reward');if(n.stimulus==='aversive')play('aversive');
    if(n.side!=='HOLD')play(ex.status==='FILLED'?(n.side==='BUY'?'buy':'sell'):'veto',1.85);}
   const n=r.neural,ex=r.execution;
+  if(LOC==='mount')return;   // на горе вместо торговых надписей говорит сама муха
   if(n.side!=='HOLD'&&ex.status==='FILLED') toast(`${n.side==='BUY'?'КУПИЛА':'ПРОДАЛА'}<small>${ex.base?(+ex.base).toFixed(6)+' BTC · $'+(+ex.quote).toFixed(2):''} по ${fmt(mid(r))}</small>`,n.side);
   else if(n.side!=='HOLD') toast(`${RU.side[n.side]}?<small>защита не пустила: ${ruReason(ex.reason||ex.status)}</small>`,'HOLD');
   else if(n.stimulus==='reward') toast('ДОФАМИН<small>портфель в плюсе → PAM-нейроны</small>','reward');
@@ -1078,7 +1143,7 @@ async function pollOnce(){
       if(seasonSeen!==null&&runState.season!==seasonSeen)pastSeasons=null;seasonSeen=runState.season;
       const age=rows.length?Math.round(Date.now()/1000-rows.at(-1).wall_time):0, up=rows.length?Date.now()/1000-rows[0].wall_time:0;
       const season=runState.season&&runState.season>1?`сезон ${runState.season} · `:'';
-      $('src').textContent=`${tomskClock()} · ${season}торгует ${dur(up)} · ${rows.length} решений · последнее ${age} с назад`+(runState.state==='restarting'?' · перезапуск…':'');
+      if(LOC==='mount')$('src').textContent=`${tomskClock()} · муха проповедует · сказано ${window.MOUNT_ST?.said||0} · вдохновлено ${window.MOUNT_ST?.inspired||0}`;else $('src').textContent=`${tomskClock()} · ${season}торгует ${dur(up)} · ${rows.length} решений · последнее ${age} с назад`+(runState.state==='restarting'?' · перезапуск…':'');
       overlay();seasonPanel();brainPoll();oraclePoll();if(pollN++%10===0)dreamPoll();return;
     }catch{
       if(hadReal){ // связь пропала (перезапуск, сон): держим последние данные, в демо не уходим
@@ -1193,7 +1258,7 @@ function animate(){
   wings.forEach(w=>{const sd=w.userData.sd;w.rotation.set(sd*(.12+buzz*(.5+Math.sin(t*70)*.45)),sd*(WY+buzz*.7),.1+Math.sin(t*1.3)*.02);});
   // body idle
   body.position.y=Math.sin(t*1.6)*.015;body.rotation.z=Math.sin(t*.9)*.02+Math.sin(t*55)*shiver;
-  head.rotation.y=Math.sin(t*.6)*.18+(trading?.25:0);head.rotation.z=-.05+Math.sin(t*1.1)*.04;
+  head.rotation.y=Math.sin(t*.6)*.18+(trading?.25:0);head.rotation.z=-.05+Math.sin(t*1.1)*.04+(ENV.headTilt||0);
   eyeMat.emissive.setRGB(.23+eyeGlow,.02,.03);
   // grooming every ~12 s when idle
   if(t>groomNext&&groomT<0&&!trading){groomT=t;}
@@ -1206,7 +1271,7 @@ function animate(){
     l.cur.lerp(l.target,.25);solveLeg(l);});
   rings.forEach((r,i)=>r.scale.setScalar(1+Math.sin(t*6+i)*.04*(1+buzz*6)));
   if(ENV.update)ENV.update(t,dt,buzz);
-  if(holoPts&&VIEW.brain){brainFade=Math.max(.3,brainFade-dt*.18);holoMat.uniforms.uFade.value=brainFade;holoMat.uniforms.uT.value=t;holoMat.uniforms.uScale.value=innerHeight*.5;
+  if(holoPts&&holo.visible){brainFade=Math.max(.3,brainFade-dt*.18);holoMat.uniforms.uFade.value=brainFade;holoMat.uniforms.uT.value=t;holoMat.uniforms.uScale.value=innerHeight*.5;
     holo.rotation.y=t*HOLO.rot;holo.position.y=HOLO.y+Math.sin(t*.8)*.04;beam.material.opacity=.035+brainFade*.03;
     if(uiTick&&LOC!=='brain'){const cap=$('brainCap'),v=holo.position.clone().add(new THREE.Vector3(0,-1.25,0)).project(camera);
     const vis=v.z<1&&Math.abs(v.x)<1.1&&Math.abs(v.y)<1.1;cap.style.display=vis?'block':'none';
