@@ -59,6 +59,11 @@ def check_scores():
             table[r] = ff.random_baseline(rate, n=300)
         say(f"  {i + 1:>5}–{i + B:<5}  {sc[s].mean():6.2f}         {st[s].mean():7.1f}        {rate:5.2f}          {table[r]:5.2f}")
     k = min(100, len(a) // 3)
+    cr = [x.get("crash") for x in a]
+    if cr[-1]:
+        lowk = lambda part: sum(c == "low" for c in part) / max(1, sum(c is not None for c in part)) * 100
+        say(f"\nудары снизу (не домахал) / сверху (перемахал): первые {k}: {lowk(cr[:k]):.0f}% / {100 - lowk(cr[:k]):.0f}%, "
+            f"последние {k}: {lowk(cr[-k:]):.0f}% / {100 - lowk(cr[-k:]):.0f}%")
     first, last = sc[:k], sc[-k:]
     d = boot(last, seed=1) - boot(first, seed=2)
     lo, hi = np.percentile(d, [2.5, 97.5])
@@ -144,6 +149,9 @@ def check_brain(ctl):
     if ch.any():
         say(f"изменение силы: среднее {np.abs(ratio[ch] - 1).mean() * 100:.1f}%, самое большое {np.abs(ratio - 1).max() * 100:.1f}%, "
             f"ослаблены {int((ratio < 1 - 1e-6).sum())}, усилены {int((ratio > 1 + 1e-6).sum())}")
+    if ff.LEVEL.startswith("mb"):
+        say("в этом сезоне взмах решает сам выход памяти (MBON07/MBON11), так что выученное доходит до решения напрямую")
+        return
     mb, dec = b.circuit["mb"], ctl.decoder
     names = {"DNp20 левый": dec.left, "DNp20 правый": dec.right, "DNpe017": dec.gate}
     say("\nкак далеко выход памяти (MBON07, MBON11) от нейронов, которые решают взмах:")
@@ -157,31 +165,47 @@ def check_brain(ctl):
 
 
 def frames(n, seed=7):
-    """Один и тот же набор кадров для обоих мозгов: игра, в которой машут наугад (20%)."""
+    """Один и тот же набор кадров для обоих мозгов: игра, в которой машут наугад (20%).
+    Для каждого кадра запоминаем, ниже ли птица середины ближайшего прохода (там надо махать)."""
     rng = np.random.default_rng(seed)
     g = ff.Game(rng)
-    out = []
+    out, low = [], []
     while len(out) < n:
         out.append(g.frame())
+        nxt = [p for p in g.pipes if p[0] + ff.PIPE_W > ff.BIRD_X - ff.BIRD_R]
+        low.append(g.y > (nxt[0][1] if nxt else ff.H / 2))
         _, crashed = g.step(rng.random() < ff.FLAP_RATE, ff.STEP_MS / 1000)
         if crashed:
             g.reset()
-    return out
+    return out, np.array(low)
 
 
 def run(ctl, fr, w):
     b = ctl.brain
     b.reset(keep_memory=True)
     b.weight[b.circuit["edges"]] = w
-    sc, df, kc = [], [], []
+    ro = ff.Readout(b, ff.STEP_MS / 1000)
+    dn, raw, kc = [], [], []
     for i, f in enumerate(fr):
         n = ctl.observe(f, "none")
-        sc.append(ff.decision_score(n))
-        df.append(n["difference_hz"])
+        dn.append(ff.decision_score(n))
+        raw.append(ro.raw())
         kc.append(n.get("KC_spikes", 0))
         if (i + 1) % 25 == 0:
             say(f"    кадр {i + 1}/{len(fr)}")
-    return np.array(sc), np.array(df), np.array(kc, float)
+    return np.array(dn), raw, np.array(kc, float)
+
+
+def mb_scores(raw1, raw0):
+    """Оценка «за − против» с одной и той же нормировкой для обоих прогонов."""
+    out = []
+    keys = ff.Readout.KEYS
+    pool = {k: np.array([r[k] for r in raw1 + raw0]) for k in keys}
+    st = {k: (v.mean(), v.std() + 1e-6) for k, v in pool.items()}
+    for raw in (raw1, raw0):
+        z = {k: np.array([(r[k] - st[k][0]) / st[k][1] for r in raw]) for k in keys}
+        out.append(z["pro_hz"] + z["pro_mv"] - z["anti_hz"] - z["anti_mv"])
+    return out
 
 
 def flaps(sc):
@@ -197,26 +221,41 @@ def check_ablation(ctl, n):
     if np.allclose(learned, b.baseline_plastic):
         say("память ещё не изменилась, сравнивать не с чем")
         return
-    fr = frames(n)
+    fr, low = frames(n)
     t = time.time()
     say("  прогон с выученной памятью…")
-    s1, d1, k1 = run(ctl, fr, learned)
+    d1, r1, k1 = run(ctl, fr, learned)
     say("  прогон с исходной памятью…")
-    s0, d0, k0 = run(ctl, fr, b.baseline_plastic.copy())
+    d0, r0, k0 = run(ctl, fr, b.baseline_plastic.copy())
     b.weight[b.circuit["edges"]] = learned
-    f1, f0 = flaps(s1), flaps(s0)
-    same = (s1 == s0).mean()
-    diff = np.abs(d1 - d0)
     say(f"  готово за {time.time() - t:.0f} с")
-    say(f"кадров, где выход мозга в точности совпал: {same * 100:.0f}%")
-    say(f"разница П−Л DNp20: в среднем {diff.mean():.2f} Гц (разброс самого сигнала от кадра к кадру {d0.std():.2f} Гц)")
+    mb = ff.LEVEL.startswith("mb")
+    if mb:
+        s1, s0 = mb_scores(r1, r0)
+        say("взмах решает выход памяти (MBON11 «за» против MBON07 «против»)")
+        for name, key in (("MBON11 «за»", "pro"), ("MBON07 «против»", "anti")):
+            hz = np.array([r[key + "_hz"] for r in r0])
+            mv = np.array([r[key + "_mv"] for r in r0])
+            say(f"  {name}: {hz.mean():.1f} Гц в среднем (спайки в {(hz > 0).mean() * 100:.0f}% кадров), потенциал {mv.mean():.1f} ± {mv.std():.2f} мВ")
+    else:
+        s1, s0 = d1, d0
+        say("взмах решают DNp20 (сезон 1)")
+    f1, f0 = flaps(s1), flaps(s0)
     say(f"решение «махать / не махать» разное в {(f1 != f0).mean() * 100:.0f}% кадров")
+    say("правильно ли: как часто муха машет, когда птица ниже середины прохода (надо махать) и выше (не надо):")
+    for name, f in (("с выученной памятью", f1), ("с исходной памятью ", f0)):
+        say(f"  {name}: ниже {f[low].mean() * 100:.0f}%, выше {f[~low].mean() * 100:.0f}%")
     if k0.mean() > 0:
         say(f"клетки Кеньона (вход памяти): {k0.mean():.0f} спайков за кадр, от кадра к кадру меняется на {k0.std() / k0.mean() * 100:.0f}%")
+    gain = (f1[low].mean() - f1[~low].mean()) - (f0[low].mean() - f0[~low].mean())
     if (f1 != f0).mean() < .02:
         say("→ выученная память на решения почти не влияет: учиться играть мухе нечем")
+    elif gain > .05:
+        say("→ память меняет решения в нужную сторону: с ней муха чаще машет, когда птица низко")
+    elif gain < -.05:
+        say("→ память меняет решения, но пока в обратную сторону")
     else:
-        say("→ память меняет решения; учится ли она правильным решениям, покажет счёт (проверка 1)")
+        say("→ память меняет решения, но пока без явной пользы")
 
 
 def main():

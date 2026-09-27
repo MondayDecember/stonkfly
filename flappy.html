@@ -57,14 +57,14 @@ html,body{margin:0;height:100%;background:#05070f;color:#dfe8ff;font-family:"Cou
     </div>
     <div class="panel">
       <div class="h"><span>МОЗГ МУХИ</span><span id="ms">—</span></div>
-      <div class="row"><span>DNp20 левый</span><b id="lh">—</b></div><div class="bar"><i id="lb" style="background:#6ab8ff"></i></div>
-      <div class="row"><span>DNp20 правый</span><b id="rh">—</b></div><div class="bar"><i id="rb" style="background:#6ab8ff"></i></div>
-      <div class="row"><span>разница П−Л / порог</span><b id="dh">—</b></div><div class="bar"><i id="db" style="background:#ffd06a"></i><s id="ds"></s></div>
+      <div class="row"><span id="lhN">MBON11 · за взмах</span><b id="lh">—</b></div><div class="bar"><i id="lb" style="background:#3dff9a"></i></div>
+      <div class="row"><span id="rhN">MBON07 · против</span><b id="rh">—</b></div><div class="bar"><i id="rb" style="background:#ff7aa8"></i></div>
+      <div class="row"><span id="dhN">решение (за − против) / порог</span><b id="dh">—</b></div><div class="bar"><i id="db" style="background:#ffd06a"></i><s id="ds"></s></div>
       <div id="flap">ВЗМАХ</div>
       <div class="row"><span>спайков за шаг</span><b id="sp">—</b></div>
       <div class="row"><span>память: изменено</span><b id="mem">—</b></div>
     </div>
-    <div class="panel" id="note">Настоящий коннектом дрозофилы (MaleCNS, 166 700 нейронов) видит игру через свои фоторецепторы. Взмах — когда правый нейрон DNp20 стреляет заметно сильнее левого, чем обычно. Пройденная труба — дофамин (PAM11), удар — нейроны наказания (PPL101), синапсы памяти меняются. Для мухи игра идёт в реальном времени её мозга, мы смотрим в замедлении. Научится ли она — неизвестно, это эксперимент. Честная проверка: жёлтая линия (среднее мухи) должна подняться выше розовой (муха, машущая наугад с той же частотой).</div>
+    <div class="panel" id="note">Настоящий коннектом дрозофилы (MaleCNS, 166 700 нейронов) видит игру через свои фоторецепторы. Сезон 2: взмах решает сама память мухи, выходные нейроны грибовидного тела MBON11 («за») против MBON07 («против»), по спайкам и потенциалу. Взмахов всегда около 20% (столько нужно, чтобы держаться в воздухе), память решает, когда. После удара — сигнал ошибки по направлению: удар снизу — дофамин PAM11 ослабляет «против» для похожих картинок (махать чаще), удар сверху — PPL101 ослабляет «за» (махать реже). Учатся настоящие синапсы KC→MBON. В сезоне 1 взмах решали DNp20, до которых выученное не доходило. Для мухи игра идёт в реальном времени её мозга, мы смотрим в замедлении. Научится ли она — неизвестно, это эксперимент. Честная проверка: жёлтая линия (среднее мухи) должна подняться выше розовой (муха, машущая наугад с той же частотой).</div>
   </div>
   <div id="curve" class="panel"><div class="h"><span>КРИВАЯ ОБУЧЕНИЯ: трубы за попытку</span><span class="lg"><i style="background:#56618a"></i>попытка<i style="background:#ffd06a"></i>среднее за 20<i style="background:#3dff9a"></i>рекорд<i style="background:#ff7aa8"></i>наугад</span></div><canvas id="cc"></canvas></div>
 </div>
@@ -101,10 +101,10 @@ const SFX={
   crash(t){tone(160,t,.4,{g:.5,to:40});noiz(t,.28,{g:.45,type:'lowpass',f:900});tone(330,t+.02,.35,{type:'triangle',g:.14,to:110});tone(900,t+.18,.7,{g:.05,to:180});},
   note(t,f,acc){tone(f,t,.55,{type:'triangle',g:acc?.07:.04});tone(f*2,t,.25,{g:acc?.02:.01});}};
 function play(n,...a){if(ok())SFX[n](AC.currentTime+.02,...a);}
-// «музыка мозга»: каждый шаг — тихая нота, чем сильнее правый DNp20 относительно левого, тем выше (&music=0 выключает)
+// «музыка мозга»: каждый шаг — тихая нота, чем сильнее решение «махать», тем выше (&music=0 выключает)
 const PENTA=[262,294,330,392,440,523,587,659,784,880],NOTE_H=[];
-function brainNote(s){if(qs.get('music')==='0'||s.diff_hz==null)return;NOTE_H.push(s.diff_hz);if(NOTE_H.length>60)NOTE_H.shift();
-  play('note',PENTA[Math.min(9,Math.floor(NOTE_H.filter(v=>v<s.diff_hz).length/NOTE_H.length*10))],s.flap);}
+function brainNote(s){const x=s.decision??s.diff_hz;if(qs.get('music')==='0'||x==null)return;NOTE_H.push(x);if(NOTE_H.length>60)NOTE_H.shift();
+  play('note',PENTA[Math.min(9,Math.floor(NOTE_H.filter(v=>v<x).length/NOTE_H.length*10))],s.flap);}
 
 // ---------- новый шаг мозга ----------
 let paused=false;
@@ -116,17 +116,27 @@ function onState(s){
   cur=s;tRecv=performance.now();
   $('score').textContent=s.score;$('att').textContent='#'+s.attempt;$('sc').textContent=s.score+' '+plural(s.score);
   $('best').textContent=s.best;if(s.baseline!=null){BASE_LINE=s.baseline;$('base').textContent=s.baseline.toFixed(2)+(s.flap_rate!=null?` (при ${Math.round(s.flap_rate*100)}% взмахов)`:'');}$('lh').textContent=s.left_hz.toFixed(1)+' Гц';$('rh').textContent=s.right_hz.toFixed(1)+' Гц';
-  const mx=Math.max(60,s.left_hz,s.right_hz);$('lb').style.width=s.left_hz/mx*100+'%';$('rb').style.width=s.right_hz/mx*100+'%';
-  const span=30,pos=v=>Math.min(100,Math.max(0,(v+span)/(2*span)*100));
-  $('dh').textContent=(s.diff_hz>=0?'+':'')+s.diff_hz.toFixed(1)+' / '+(s.threshold_hz??0).toFixed(1);
-  $('db').style.left=Math.min(pos(0),pos(s.diff_hz))+'%';$('db').style.width=Math.abs(pos(s.diff_hz)-pos(0))+'%';$('ds').style.left=pos(s.threshold_hz??0)+'%';
+  if(s.pro!=null){   // сезон 2: решает память (MBON)
+    const sg=v=>(v>=0?'+':'')+v.toFixed(2),zp=v=>Math.min(100,Math.max(0,(v+4)/8*100));
+    $('lhN').textContent='MBON11 · за взмах';$('rhN').textContent='MBON07 · против';$('dhN').textContent='решение (за − против) / порог';
+    $('lh').textContent=`${sg(s.pro)} · ${s.pro_hz.toFixed(0)} Гц`;$('rh').textContent=`${sg(s.anti)} · ${s.anti_hz.toFixed(0)} Гц`;
+    $('lb').style.width=zp(s.pro)+'%';$('rb').style.width=zp(s.anti)+'%';
+    const span=6,pos=v=>Math.min(100,Math.max(0,(v+span)/(2*span)*100));$('dh').textContent=sg(s.decision)+' / '+sg(s.threshold);
+    $('db').style.left=Math.min(pos(0),pos(s.decision))+'%';$('db').style.width=Math.abs(pos(s.decision)-pos(0))+'%';$('ds').style.left=pos(s.threshold)+'%';
+  }else{   // сезон 1: DNp20
+    $('lhN').textContent='DNp20 левый';$('rhN').textContent='DNp20 правый';$('dhN').textContent='разница П−Л / порог';
+    $('lh').textContent=s.left_hz.toFixed(1)+' Гц';$('rh').textContent=s.right_hz.toFixed(1)+' Гц';
+    const mx=Math.max(60,s.left_hz,s.right_hz);$('lb').style.width=s.left_hz/mx*100+'%';$('rb').style.width=s.right_hz/mx*100+'%';
+    const span=30,pos=v=>Math.min(100,Math.max(0,(v+span)/(2*span)*100));
+    $('dh').textContent=(s.diff_hz>=0?'+':'')+s.diff_hz.toFixed(1)+' / '+(s.threshold_hz??0).toFixed(1);
+    $('db').style.left=Math.min(pos(0),pos(s.diff_hz))+'%';$('db').style.width=Math.abs(pos(s.diff_hz)-pos(0))+'%';$('ds').style.left=pos(s.threshold_hz??0)+'%';}
   $('flap').className=s.flap?'on':'';$('sp').textContent=fmt(s.spikes);$('mem').textContent=s.changed_edges!=null?fmt(s.changed_edges)+' из 7 835':'—';
   $('ms').textContent=(s.world.STEP_MS|0)+' мс мозга · счёт '+(s.compute??0).toFixed(1)+' с';
   if(!demo)$('eyeImg').src=BASE+'eye.png?t='+Date.now();
   if(!s.passed&&!s.crashed)brainNote(s);
   if(s.flap)play('flap');
-  if(s.passed){play('pass');flash('+1','#3dff9a','труба пройдена · дофамин');}
-  if(s.crashed){play('crash');flash('БАМ!','#ff5470',`попытка #${s.attempt}: ${s.score} ${plural(s.score)} · наказание`);}
+  if(s.passed){play('pass');flash('+1','#3dff9a','труба пройдена');}
+  if(s.crashed){play('crash');flash('БАМ!','#ff5470',`попытка #${s.attempt}: ${s.score} ${plural(s.score)} · `+(s.teach==='high'?'удар сверху → махать реже':s.teach==='low'?'удар снизу → махать чаще':'наказание'));}
 }
 function plural(n){n=Math.abs(n)%100;const k=n%10;return n>10&&n<20?'труб':k===1?'труба':k>=2&&k<=4?'трубы':'труб';}
 let msgT;function flash(t,col,sub){const m=$('msg');m.innerHTML=t+'<small>'+sub+'</small>';m.style.color=col;m.style.textShadow='0 0 1rem '+col;m.style.opacity=1;clearTimeout(msgT);msgT=setTimeout(()=>m.style.opacity=0,1600);}
@@ -199,7 +209,7 @@ function startDemo(){$('src').textContent='ДЕМО: случайные взма
     if(st.pipes.at(-1)[0]<110)st.pipes.push([320,76+Math.random()*18]);st.pipes=st.pipes.filter(p=>p[0]>-34);
     let crashed=st.y+7>164;st.pipes.forEach(([x,gy])=>{if(x-7<70&&70<x+41&&!(gy-55<st.y&&st.y<gy+55))crashed=true;});
     best=Math.max(best,st.score);const d=(Math.random()-.5)*20;
-    onState({wall:Date.now()/1000,attempt:att,score:st.score,best,y:st.y,vy:st.vy,pipes:st.pipes.map(p=>[...p]),flap,passed,crashed,left_hz:40,right_hz:40+d,diff_hz:d,threshold_hz:5,spikes:600000,compute:1,changed_edges:null,world:w});
+    onState({wall:Date.now()/1000,attempt:att,score:st.score,best,y:st.y,vy:st.vy,pipes:st.pipes.map(p=>[...p]),flap,passed,crashed,left_hz:40,right_hz:40+d,diff_hz:d,threshold_hz:5,pro:d/5,anti:-d/10,pro_hz:12,anti_hz:25,decision:d/5+d/10,threshold:1.2,teach:crashed?(st.y>100?'low':'high'):null,spikes:600000,compute:1,changed_edges:null,world:w});
     if(crashed){attempts.push({attempt:att,score:st.score});drawCurve();reset();}},700);}
 </script>
 </body>

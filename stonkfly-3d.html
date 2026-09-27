@@ -112,7 +112,7 @@ canvas{display:block}
   <div class="row"><span>попытка</span><b id="flatt">—</b></div><div class="row"><span>рекорд</span><b id="flbest">—</b></div>
   <div class="row"><span>среднее: первые 50 → последние 50</span><b id="flavg">—</b></div>
   <div class="row"><span>муха, машущая наугад</span><b id="flbase">—</b></div>
-  <div class="row"><span>DNp20 лев / прав</span><b id="fllr">—</b></div><div id="flflap">ВЗМАХ</div>
+  <div class="row"><span id="fllrN">память: за / против</span><b id="fllr">—</b></div><div id="flflap">ВЗМАХ</div>
   <canvas id="flcurve" width="600" height="160"></canvas><div class="row"><span style="font-size:.68rem">жёлтая: среднее мухи · розовая: наугад</span></div></div>
 <div id="sermon"></div>
 <div id="preach" class="panel"><div class="s" id="prState">СЛУШАЕТ ТИШИНУ</div>
@@ -1206,12 +1206,12 @@ function flappyState(s){
   if(FL.cur&&s.attempt!==FL.cur.attempt)FL.prev=null;else FL.prev=FL.cur;
   if(FL.cur)FL.interval=Math.min(4000,Math.max(300,(performance.now()-FL.tRecv)*.7+FL.interval*.3));FL.cur=s;FL.tRecv=performance.now();
   $('flsc').textContent=s.score;if(s.baseline!=null){FL.base=s.baseline;$('flbase').textContent=s.baseline.toFixed(2)+(s.flap_rate!=null?` · взмахов ${Math.round(s.flap_rate*100)}%`:'');}$('flatt').textContent='#'+s.attempt;$('flbest').textContent=s.best;
-  $('fllr').textContent=`${s.left_hz.toFixed(1)} / ${s.right_hz.toFixed(1)} Гц`;$('flflap').className=s.flap?'on':'';
+  if(s.pro!=null){$('fllrN').textContent='память: за / против';$('fllr').textContent=`${s.pro>=0?'+':''}${s.pro.toFixed(1)} / ${s.anti>=0?'+':''}${s.anti.toFixed(1)}`;}else{$('fllrN').textContent='DNp20 лев / прав';$('fllr').textContent=`${s.left_hz.toFixed(1)} / ${s.right_hz.toFixed(1)} Гц`;}$('flflap').className=s.flap?'on':'';
   if(!s.crashed&&!s.passed)brainNote(s);
   if(s.flap){play('fflap',.05);if(!DISTRACT){flapFx={t0:performance.now(),kind:'flap'};pressKey(18+(Math.random()*6|0),0x3dff9a);}}
   if((s.passed||s.crashed||FL.tickerAt!==s.attempt)&&ENV.redraw){FL.tickerAt=s.attempt;ENV.redraw();}
-  if(s.passed){if(window.MOM_EVENT)MOM_EVENT('pass');flapFx={t0:performance.now(),kind:'reward'};play('fpass');play('reward',.35);toast('+1<small>труба пройдена · дофамин</small>','BUY');}
-  if(s.crashed){if(window.MOM_EVENT)MOM_EVENT('crash');flapFx={t0:performance.now(),kind:'crash'};play('fcrash');toast(`БАМ!<small>попытка #${s.attempt}: ${s.score} · наказание</small>`,'SELL');}}
+  if(s.passed){if(window.MOM_EVENT)MOM_EVENT('pass');flapFx={t0:performance.now(),kind:'reward'};play('fpass');toast('+1<small>труба пройдена</small>','BUY');}
+  if(s.crashed){if(window.MOM_EVENT)MOM_EVENT('crash');flapFx={t0:performance.now(),kind:'crash'};play('fcrash');toast(`БАМ!<small>попытка #${s.attempt}: ${s.score} · `+(s.teach==='high'?'удар сверху → махать реже':s.teach==='low'?'удар снизу → махать чаще':'наказание')+'</small>','SELL');}}
 // пауза игры на сервере flappyfly.py (порт 8082): муха нажимает её, когда уходит от компьютера
 function flappyCtl(path){FL.paused=path.startsWith('/pause');if(!location.hostname||qs.has('demo'))return;
   fetch(`${location.protocol}//${location.hostname}:${qs.get('flport')||8082}${path}`,{mode:'no-cors',cache:'no-store'}).catch(()=>{});}
@@ -1356,11 +1356,11 @@ function noiz(t,d,{g=.2,type='bandpass',f=1000,q=1,a=.005}={}){ // отрезо�
   const s=AC.createBufferSource(),fl=AC.createBiquadFilter(),v=AC.createGain();s.buffer=NBUF;s.loop=true;fl.type=type;fl.frequency.value=f;fl.Q.value=q;
   v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(g,t+a);v.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(fl).connect(v).connect(MASTER);s.start(t,Math.random());s.stop(t+d+.05);}
 function play(name,delay=0,...args){if(!AC||AC.state!=='running'||!SFX[name])return;SFX[name](AC.currentTime+delay,...args);}
-// «музыка мозга» во Flappy: каждый шаг игры — тихая нота, высота = насколько правый DNp20 сильнее левого (&music=0 выключает)
+// «музыка мозга» во Flappy: каждый шаг игры — тихая нота, высота = насколько сильно мозг «за» взмах (&music=0 выключает)
 const PENTA=[262,294,330,392,440,523,587,659,784,880];
 const NOTE_H=[];
-function brainNote(s){if(qs.get('music')==='0'||s.diff_hz==null)return;NOTE_H.push(s.diff_hz);if(NOTE_H.length>60)NOTE_H.shift();
-  const r=NOTE_H.filter(v=>v<s.diff_hz).length/NOTE_H.length;play('note',0,PENTA[Math.min(9,Math.floor(r*10))],s.flap);}
+function brainNote(s){const x=s.decision??s.diff_hz;if(qs.get('music')==='0'||x==null)return;NOTE_H.push(x);if(NOTE_H.length>60)NOTE_H.shift();
+  const r=NOTE_H.filter(v=>v<x).length/NOTE_H.length;play('note',0,PENTA[Math.min(9,Math.floor(r*10))],s.flap);}
 
 const RU={
   side:{BUY:'КУПИТЬ',SELL:'ПРОДАТЬ',HOLD:'ДЕРЖАТЬ'},
@@ -1573,7 +1573,7 @@ function animate(){
   renderer.render(scene,camera);cpuSum+=performance.now()-now;}
 audioInit();drawScreen(false);animate();
 if(MODE==='flappy'){['stats','season','ticker','hud'].forEach(id=>$(id).style.display='none');
-  $('disc').textContent='настоящий коннектом мухи дрозофилы играет во Flappy Fly · взмах решают нейроны DNp20 · труба = дофамин, удар = наказание · эксперимент';$('flhud').style.display='block';
+  $('disc').textContent='настоящий коннектом мухи дрозофилы играет во Flappy Fly · сезон 2: взмах решает её память (MBON11 за, MBON07 против) · удар снизу = дофамин «махать чаще», сверху = «махать реже» · эксперимент';$('flhud').style.display='block';
   flappyPoll();flappyAttempts();setInterval(flappyPoll,250);setInterval(flappyAttempts,5000);
   setInterval(()=>{oraclePoll();},3000);setInterval(dreamPoll,30000);dreamPoll();}
 else{poll();setInterval(poll,3000);}

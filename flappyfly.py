@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """Flappy Fly: настоящий мозг мухи (MaleCNS, тот же, что у торговой мухи) играет во Flappy Bird.
 
-Каждый шаг игры муха видит кадр 320x180, мозг живёт FLAP_MS миллисекунд своего времени
-(~1 с счёта на процессоре). Взмах = правый DNp20 стреляет сильнее левого заметнее, чем обычно
-для этой мухи: разница R-L выше своего 80-го перцентиля за последние 200 шагов (FLAP_RATE=0.2).
-Относительный порог нужен, потому что у мухи есть постоянный перекос вправо; когда махать,
-решает мозг в ответ на то, что видит. Пройденная труба = дофамин (PAM11), столкновение = наказание (PPL101).
-Синапсы памяти учатся так же, как у торговой мухи. Игра идёт во «времени мозга»:
-для мухи это реальное время, для нас замедление примерно в 12 раз.
+Сезон 2 (mb-v1): взмах решает сама память мухи.
+Каждый шаг игры муха видит кадр 320x180, мозг живёт STEP_MS миллисекунд своего времени (~1 с счёта).
+Взмах читается с выходных нейронов грибовидного тела, тех самых, чьи входные синапсы учатся:
+MBON11 (отсек γ1) «за взмах», MBON07 (отсек α1) «против». Оценка = (за − против) по частоте спайков
+и мембранному потенциалу, взмах — когда оценка в верхних 20% за последние 200 шагов
+(столько взмахов нужно, чтобы вообще держаться в воздухе: G·dt/|FLAP_V| ≈ 0.22).
+Сигнал ошибки после удара, по направлению:
+  удар снизу (пол или нижняя труба)  → дофамин PAM11 в отсек α1: ослабляются синапсы KC→MBON07
+                                        для картинок последней секунды → в таких местах махать чаще;
+  удар сверху (верхняя труба)        → PPL101 в отсек γ1: ослабляются KC→MBON11 → махать реже.
+Правило обучения то же, что у торговой мухи (Huang, Luo et al. 2024). После удара — 0,8 с тёмного
+экрана проигрыша, чтобы след дофамина не ложился на начало следующей попытки.
+В сезоне 1 (easy-v3) взмах решали DNp20, до которых выученное не доходило (stonkfly check).
 
 Пишет для страницы flappy.html в runs/flappy/: state.json, attempts.jsonl, eye.png, brain.npz.
 Пауза: http://<IP>:8082/pause?s=15 (не дольше 30 с) и /resume. 3D-страница ставит игру на паузу,
@@ -36,7 +42,8 @@ W, H, GROUND = 320, 180, 16
 G, FLAP_V, SPEED, SPACING, GAP, PIPE_W, BIRD_X, BIRD_R = 240.0, -88.0, 45.0, 210.0, 125.0, 34, 70, 7
 PORT = int(os.environ.get("FLAPPY_PORT", 8082))
 PAUSE = {"until": 0.0}
-LEVEL = "easy-v3"   # v3: равенства П−Л решает DNpe017, планка по реальной доле взмахов
+LEVEL = "mb-v1"   # сезон 2: взмах решает выход памяти (MBON), ошибка по направлению удара
+GAMEOVER_MS = 800   # тёмный экран после удара, мс времени мозга
 
 
 def atomic(path, data):
@@ -58,8 +65,9 @@ class Game:
         return float(self.rng.uniform(14 + GAP / 2, H - GROUND - 10 - GAP / 2))
 
     def step(self, flap, dt):
-        """Возвращает (прошёл_трубу, разбился)."""
+        """Возвращает (прошёл_трубу, разбился). Куда ударился — в self.crash: "low" (пол, нижняя труба) или "high"."""
         self.steps += 1
+        self.crash = None
         if flap:
             self.vy, self.flaps = FLAP_V, self.flaps + 1
         self.vy += G * dt
@@ -77,9 +85,12 @@ class Game:
             self.pipes.append([float(W), self.gap()])
         self.pipes = [p for p in self.pipes if p[0] > -PIPE_W]
         crashed = self.y + BIRD_R > H - GROUND
+        if crashed:
+            self.crash = "low"
         for x, gy in self.pipes:
             if x - BIRD_R < BIRD_X < x + PIPE_W + BIRD_R and not (gy - GAP / 2 + BIRD_R < self.y < gy + GAP / 2 - BIRD_R):
                 crashed = True
+                self.crash = self.crash or ("low" if self.y > gy else "high")
         return passed, crashed
 
     def frame(self):
@@ -150,8 +161,47 @@ def random_baseline(rate, n=400, seed=1):
 RATES = np.round(np.arange(0.02, 0.52, 0.04), 2)
 
 
+class Readout:
+    """Взмах читается с выхода памяти: MBON11 (γ1) за, MBON07 (α1) против.
+    Частоты спайков за 80 мс идут ступеньками, поэтому к ним добавлен мембранный потенциал тех же клеток.
+    Каждый признак нормируется по своей скользящей средней и разбросу (за ~500 шагов)."""
+
+    KEYS = ("pro_hz", "pro_mv", "anti_hz", "anti_mv")
+
+    def __init__(self, brain, seconds):
+        mb = np.asarray(brain.circuit["mb"])
+        if len(mb) != 6:
+            raise ValueError("ожидались 4 MBON07 и 2 MBON11")
+        self.b, self.sec = brain, seconds
+        self.anti, self.pro = mb[:4], mb[4:]    # identify(): сначала MBON07 (награда), потом MBON11 (наказание)
+        self.stats = {}
+
+    def raw(self):
+        c, v = self.b.counts, self.b.v
+        return {"pro_hz": float(c[self.pro].mean() / self.sec), "pro_mv": float(v[self.pro].mean()),
+                "anti_hz": float(c[self.anti].mean() / self.sec), "anti_mv": float(v[self.anti].mean())}
+
+    def z(self, r, learn=True):
+        out = {}
+        for k in self.KEYS:
+            x = r[k]
+            m, var, n = self.stats.get(k, (x, 1.0, 0))
+            if learn:
+                a = max(1 / (n + 1), 1 / 500)
+                m += a * (x - m)
+                var += a * ((x - m) ** 2 - var)
+                self.stats[k] = (m, var, n + 1)
+            out[k] = float(np.clip((x - m) / np.sqrt(var + 1e-6), -4, 4))
+        return out
+
+    def score(self, r, n, learn=True):
+        z = self.z(r, learn)
+        pro, anti = z["pro_hz"] + z["pro_mv"], z["anti_hz"] + z["anti_mv"]
+        return pro - anti + 1e-4 * decision_score(n), pro, anti
+
+
 def decision_score(n):
-    """Чем сильнее правый DNp20 относительно левого, тем выше. Частоты за 80 мс идут ступеньками,
+    """Сезон 1 и разбор равенств: чем сильнее правый DNp20 относительно левого, тем выше. Частоты за 80 мс идут ступеньками,
     поэтому равенства разбирает нейрон DNpe017 (тот же «разрешающий», что у торговой мухи),
     а оставшиеся — общая активность DNp20. Всё это — выход мозга, без случайности."""
     return n["difference_hz"] + 0.01 * n["gate_spikes"] + 1e-4 * (n["left_hz"] + n["right_hz"])
@@ -166,7 +216,8 @@ def main():
     print("Flappy Fly: загружаю мозг мухи…", flush=True)
     settings = Settings(learning=True, neural_ms=STEP_MS, pulse_ms=min(200, STEP_MS))
     ctl = FlyController(settings)
-    params = {"level": LEVEL, "G": G, "FLAP_V": FLAP_V, "SPEED": SPEED, "SPACING": SPACING, "GAP": GAP, "STEP_MS": STEP_MS, "FLAP_RATE": FLAP_RATE}
+    params = {"level": LEVEL, "G": G, "FLAP_V": FLAP_V, "SPEED": SPEED, "SPACING": SPACING, "GAP": GAP, "STEP_MS": STEP_MS, "FLAP_RATE": FLAP_RATE,
+              "readout": "MBON11-MBON07", "teach": "crash-direction", "gameover_ms": GAMEOVER_MS}
     old = json.loads((OUT / "params.json").read_text()) if (OUT / "params.json").exists() else None
     if old != params:   # правила игры поменялись: старую историю и память — в архив, честный старт с нуля
         stamp = time.strftime("%Y%m%d-%H%M%S")
@@ -188,7 +239,9 @@ def main():
     hist_path = OUT / "attempts.jsonl"
     attempts = [json.loads(l) for l in hist_path.read_text().splitlines() if l.strip()] if hist_path.exists() else []
     best = max([a["score"] for a in attempts], default=0)
-    game, stim = Game(np.random.default_rng()), "none"
+    game = Game(np.random.default_rng())
+    readout = Readout(ctl.brain, STEP_MS / 1000)
+    dark = np.zeros((H, W, 3), np.uint8)
     from collections import deque
     recent = deque(maxlen=200)
 
@@ -216,9 +269,10 @@ def main():
             print("продолжаю", flush=True)
             was_paused = False
         frame = game.frame()
-        n = ctl.observe(frame, stim)
+        n = ctl.observe(frame, "none")
         d = n["difference_hz"]
-        sc = decision_score(n)
+        raw = readout.raw()
+        sc, pro, anti = readout.score(raw, n)
         if len(recent) >= 20:      # средний ранг: равные значения не «съедают» взмахи
             arr = np.asarray(recent)
             frac = ((arr < sc).sum() + 0.5 * (arr == sc).sum()) / len(arr)
@@ -228,7 +282,6 @@ def main():
         recent.append(sc)
         thr = float(np.percentile(recent, 100 * (1 - FLAP_RATE)))
         passed, crashed = game.step(flap, STEP_MS / 1000)
-        stim = "aversive" if crashed else "reward" if passed else "none"
         best = max(best, game.score)
         tail = attempts[-20:]
         st_ = sum(a["steps"] for a in tail) + game.steps
@@ -236,7 +289,8 @@ def main():
         state = {
             "wall": time.time(), "attempt": len(attempts) + 1, "score": game.score, "best": best, "steps": game.steps,
             "y": game.y, "vy": game.vy, "pipes": game.pipes, "flap": bool(flap), "passed": passed, "crashed": crashed,
-            "left_hz": n["left_hz"], "right_hz": n["right_hz"], "diff_hz": d, "threshold_hz": thr, "gate": n["gate_spikes"],
+            "left_hz": n["left_hz"], "right_hz": n["right_hz"], "diff_hz": d, "gate": n["gate_spikes"],
+            "decision": sc, "threshold": thr, "pro": pro, "anti": anti, **raw, "teach": game.crash,
             "spikes": n["total_spikes"], "compute": n["compute_seconds"], "changed_edges": n["memory"]["changed_edges"],
             "mean_efficacy": n["memory"]["mean_efficacy"], "baseline": base_at(rate_now), "flap_rate": rate_now, "level": LEVEL,
             "paused": False, "world": {"W": W, "H": H, "GROUND": GROUND, "GAP": GAP, "PIPE_W": PIPE_W, "BIRD_X": BIRD_X, "BIRD_R": BIRD_R, "STEP_MS": STEP_MS},
@@ -244,11 +298,15 @@ def main():
         Image.fromarray(frame).save(OUT / "eye.tmp.png")
         (OUT / "eye.tmp.png").replace(OUT / "eye.png")
         if crashed:
-            rec = {"attempt": len(attempts) + 1, "score": game.score, "steps": game.steps, "flaps": game.flaps, "wall": time.time()}
+            atomic(OUT / "state.json", json.dumps(state).encode())
+            # сигнал ошибки по направлению удара, на кадре самого удара
+            ctl.observe(game.frame(), "reward" if game.crash == "low" else "aversive")
+            ctl.brain.rgb_step(dark, GAMEOVER_MS, learning=True)   # экран проигрыша
+            rec = {"attempt": len(attempts) + 1, "score": game.score, "steps": game.steps, "flaps": game.flaps, "crash": game.crash, "wall": time.time()}
             attempts.append(rec)
             with hist_path.open("a") as h:
                 h.write(json.dumps(rec) + "\n")
-            print(f"попытка {rec['attempt']}: {rec['score']} труб, {rec['steps']} шагов, рекорд {best}", flush=True)
+            print(f"попытка {rec['attempt']}: {rec['score']} труб, {rec['steps']} шагов, удар {'снизу' if game.crash == 'low' else 'сверху'}, рекорд {best}", flush=True)
             if len(attempts) % 10 == 0:
                 save()
             game.reset()
