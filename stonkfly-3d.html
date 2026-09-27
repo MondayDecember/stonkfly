@@ -785,11 +785,21 @@ const dad=miniFly(2.0);dad.visible=false;scene.add(dad);
  const shirt=new THREE.Mesh(new THREE.SphereGeometry(.33,16,10,0,Math.PI*2,Math.PI*.25,Math.PI*.5),new THREE.MeshStandardMaterial({color:0xf2f2f2,roughness:.9,side:THREE.DoubleSide}));
  shirt.scale.set(1.2,.95,1);u.body.add(shirt);   // белая майка
  const mug=new THREE.Mesh(new THREE.CylinderGeometry(.09,.08,.18,12),new THREE.MeshStandardMaterial({color:0x3a6ab0}));mug.position.set(.35,-.25,.22);u.body.add(mug);}
-const MOM_SAY=['Сынок, иди кушать, всё остынет!','Опять ты в свои игры играешь?','Ты уроки сделал?','Выключай компьютер, спать пора!','Я варенье сварила, иди попробуй!',
-  'Мусор вынеси, пожалуйста!','Бабушке позвонить не забудь!','Не сиди так близко к монитору, глаза испортишь!','Форточку закрой, сквозняк!','Опять крошки на столе оставил?'];
-const SON_SAY=['Ну мам, ещё одну попытку!','Щас, мам!','Я не играю, я учусь! У меня синапсы меняются!','Мам, ну пять минут!','Ага, иду-иду…','Мам, не отвлекай, тут труба!'];
+// мама говорит → муха отвечает в тему → мама отвечает (s: варианты ответа мухи)
+const MOM_TALK=[
+  {m:'Сынок, иди кушать, всё остынет!',s:['Щас, мам! Только трубу пролечу!','Иду-иду… после этой попытки!'],r:'Я тебе банан положила, как ты любишь.'},
+  {m:'Опять ты в свои игры играешь?',s:['Я не играю, я учусь! У меня синапсы меняются!','Это не игра, мам, это эксперимент!'],r:'Синапсы у него… Уроки бы так учил.'},
+  {m:'Ты уроки сделал?',s:['Сделал, мам! Ну… почти.','Мам, у меня сейчас урок полёта!'],r:'Почти — не считается!'},
+  {m:'Выключай компьютер, спать пора!',s:['Ещё одну попытку, и сплю!','Мам, у меня мозг ещё тренируется!'],r:'Знаю я твоё «ещё одну».'},
+  {m:'Я варенье сварила, иди попробуй!',s:['Малиновое?! Щас, мам, только долечу!','Варенье?! Мам, оставь мне!'],r:'Смотри, не прилипни опять.'},
+  {m:'Мусор вынеси, пожалуйста!',s:['Мам, там же самое вкусное!','Вынесу, мам! Ну… может, сначала поем.'],r:'Вынеси, а не съешь!'},
+  {m:'Бабушке позвонить не забудь!',s:['Позвоню! Расскажу ей про свой рекорд!','Не забуду, мам! Вечером позвоню.'],r:'Она обрадуется.'},
+  {m:'Не сиди так близко к монитору, глаза испортишь!',s:['Мам, у меня в каждом глазу 800 фасеток, им ничего не будет!','Мам, мне так трубы лучше видно!'],r:'Всё равно отодвинься.'},
+  {m:'Форточку закрой, сквозняк!',s:['Закрою, мам! Только не сейчас, тут труба!','Мам, мне сквозняк лететь помогает!'],r:'Тогда хоть свитер надень.'},
+  {m:'Опять крошки на столе оставил?',s:['Это не крошки, это запас на зиму!','Мам, это я на потом оставил!'],r:'Ох, весь в отца.'}];
+const pl=n=>{n=Math.abs(n)%100;const k=n%10;return n>10&&n<20?'труб':k===1?'труба':k>=2&&k<=4?'трубы':'труб';};
 function sonToDad(){const c=FL.cur;if(!c)return['…','Ну ладно, сынок.'];
-  if(c.passed||c.score>0)return[`Да, пап! Уже ${c.score} ${c.score===1?'труба':c.score<5?'трубы':'труб'}!`,'Молодец, сынок.'];
+  if(c.passed||c.score>0)return[`Да, пап! Уже ${c.score} ${pl(c.score)}!`,'Молодец, сынок.'];
   const a=FL.attempts,tail=a.slice(-20),avg=tail.length?tail.reduce((p,q)=>p+q.score,0)/tail.length:0;
   if(c.crashed||c.steps<4)return[`Нет, пап… Разбился. Уже ${c.attempt}-й раз.`,'Ну ничего, сынок. Ну ничего…'];
   if(FL.base!=null&&avg>FL.base)return['Кажется, да! Я лучше, чем наугад!','Горжусь тобой, сынок.'];
@@ -809,36 +819,82 @@ function camTo(shot,k){if(!CAMFOCUS)return;if(!camFrom)camFrom={p:camera.positio
 function camBack(k){if(!CAMFOCUS||!camFrom)return;const e=k*k*(3-2*k),cur={p:SHOT[who].p,t:SHOT[who].t};
   camera.position.lerpVectors(cur.p,camFrom.p,e);controls.target.lerpVectors(cur.t,camFrom.t,e);camera.lookAt(controls.target);if(k>=1)camFrom=null;}
 function bez(a,b,c,k){const u=1-k;return a.clone().multiplyScalar(u*u).add(b.clone().multiplyScalar(2*u*k)).add(c.clone().multiplyScalar(k*k));}
-function bub(id,html,obj,up){const el=$(id);if(!html){el.style.display='none';return;}el.innerHTML=html;const p=obj.getWorldPosition(new THREE.Vector3());p.y+=up;p.project(camera);
+function bub(id,html,obj,up){const el=$(id);if(!html){el.style.display='none';return;}if(el.innerHTML!==html)el.innerHTML=html;camera.updateMatrixWorld();const p=obj.getWorldPosition(new THREE.Vector3());p.y+=up;p.project(camera);
   const ok=p.z<1&&Math.abs(p.x)<1.1&&Math.abs(p.y)<1.1;el.style.display=ok?'block':'none';if(ok){el.style.left=((p.x+1)/2*innerWidth)+'px';el.style.top=((1-p.y)/2*innerHeight)+'px';}}
-window.MOM_EVENT=kind=>{if(st==='talk'&&kind==='crash')crashed=true;};
+const AWAY=['notice','takeoff','go','push','proud','back','land','settle'];
+window.MOM_EVENT=kind=>{const e=(performance.now()-st0)/1000;   // события игры во время разговора (после 5,5 с уже не перебиваем)
+  if(kind==='pass'&&st==='talk'&&e<5.5&&!crashed)passedT=true;
+  if(kind!=='crash')return;if(st==='talk'&&e<5.5)crashed=true;else if(AWAY.includes(st))crashAway=true;};
 const easeDoor=k=>1.35*Math.sin(Math.min(1,Math.max(0,k))*Math.PI/2);
-let momLine='',sonLine='',dadLines=null;
+let talk=null,sonLine='',dadLines=null,passedT=false;
 function face(obj,x,z){obj.lookAt(x,obj.position.y,z);obj.rotateY(-Math.PI/2);}
+// ---- дверь оставили открытой: муха сама летит её закрывать ----
+const HINGE=new THREE.Vector3(RX0+.05,0,6.55),DOOR_OPEN=1.35,FLY_Y=.7;
+const ez=k=>{k=Math.min(1,Math.max(0,k));return k*k*(3-2*k);};
+function pushPos(th){const r=1.25;return new THREE.Vector3(HINGE.x+r*Math.sin(th)+1.25*Math.cos(th),FLY_Y,HINGE.z+r*Math.cos(th)-1.25*Math.sin(th));}  // перед дверью, носом в неё
+const yawTo=(dx,dz)=>Math.atan2(-dz,dx);
+function angL(a,b,k){const d=Math.atan2(Math.sin(b-a),Math.cos(b-a));return a+d*k;}
+const SIGH=['Опять дверь не закрыли…','Сквозняк же!','Вот всегда так…','Ну кто дверь закрывать будет?','Родители…'],SIGH_WHO={mom:['Мам, ну дверь-то!','Мам, дверь закрой! Эх…'],dad:['Пап, ну дверь-то!','Пап, дверь закрой! Эх…']};
+const DONE=['Вот так.','Так-то лучше.','Всё сам, всё сам…','Теперь можно играть.','Уф. Закрыл.'];
+let HOME=null,sigh='',done='',crashAway=false,flyFrom=null,flyCtl=null,flyTo=null,slammed=false;
+function camMove(a,b,k){if(!CAMFOCUS||!a||!b)return;const e=ez(k);camera.position.lerpVectors(a.p,b.p,e);controls.target.lerpVectors(a.t,b.t,e);camera.lookAt(controls.target);}
+function camFollow(){if(!CAMFOCUS)return;camera.position.copy(SHOT.door.p);controls.target.lerpVectors(SHOT.door.t,fly.position,.3);camera.lookAt(controls.target);}   // камера слегка ведёт муху
+function flyAlong(k,t,lookEnd){ // полёт по дуге, нос по ходу движения, лёгкий наклон
+  const e=ez(k),p=bez(flyFrom,flyCtl,flyTo,e),q=bez(flyFrom,flyCtl,flyTo,Math.min(1,e+.02));
+  fly.position.copy(p);fly.position.y+=Math.sin(t*9)*.03;
+  let yaw=q.distanceTo(p)>1e-4?yawTo(q.x-p.x,q.z-p.z):fly.rotation.y;if(lookEnd!=null)yaw=angL(yaw,lookEnd,ez((k-.7)/.3));
+  fly.rotation.y=angL(fly.rotation.y,yaw,.2);fly.rotation.z=-.18*Math.sin(Math.PI*k);}
+function finish(now){fly.position.copy(HOME.p);fly.rotation.set(0,HOME.ry,0);ENV.air=0;ENV.buzz=0;DISTRACT=0;ENV.headYaw=0;$('sonBub').style.display='none';
+  camFrom=null;st='idle';st0=now;controls.enabled=!AUTO;next=now+(FAST?20000:(150+Math.random()*150)*1000);}
 ENV.update=(t,dt)=>{const now=performance.now(),e=(now-st0)/1000;
-  if(st==='idle'&&now>next){visits++;SHOT.mom=twoShot(SPOT);SHOT.dad=twoShot(DAD_SPOT.clone().setY(1.1));who=(visits%3===0||qs.get('visit')==='dad')&&qs.get('visit')!=='mom'?'dad':'mom';
-    st='door';st0=now;momLine=MOM_SAY[Math.random()*MOM_SAY.length|0];sonLine=SON_SAY[Math.random()*SON_SAY.length|0];crashed=false;dadLines=null;play('creak');}
+  if(['takeoff','go','push','proud','back'].includes(st))camFollow();
+  if(st==='idle'&&now>next){visits++;SHOT.mom=twoShot(SPOT);SHOT.dad=twoShot(DAD_SPOT.clone().setY(1.1));SHOT.door={p:new THREE.Vector3(7,4.9,-2.7).clamp(CAM_MIN,CAM_MAX),t:new THREE.Vector3(-3.5,.2,3.5)};   // из-за стола: муха спиной к нам, дверь вдали
+    who=(visits%3===0||qs.get('visit')==='dad')&&qs.get('visit')!=='mom'?'dad':'mom';
+    st='door';st0=now;talk=MOM_TALK[Math.random()*MOM_TALK.length|0];sonLine=talk.s[Math.random()*talk.s.length|0];crashed=false;passedT=false;crashAway=false;dadLines=null;play('creak',0,1.2);}
   if(st!=='idle')controls.enabled=false;
   if(st==='door'){doorPivot.rotation.y=easeDoor(e/1.2);camTo(SHOT[who],Math.min(1,e/1.2));
-    if(e>1.2){st='enter';st0=now;(who==='mom'?mom:dad).visible=true;}}
+    if(e>1.2){st='enter';st0=now;(who==='mom'?mom:dad).visible=true;if(who==='mom')play('wing',0,3);}}
   else if(st==='enter'){const k=Math.min(1,e/(who==='mom'?3:1.2));
     if(who==='mom'){mom.position.copy(bez(DOOR_IN,DOOR_OUT,SPOT,k));face(mom,fly.position.x,fly.position.z);liveFly(mom,t,dt,true);}
     else{dad.position.lerpVectors(new THREE.Vector3(RX0-.9,.35,7.7),DAD_SPOT,k);face(dad,dad.position.x+1,dad.position.z-.35);liveFly(dad,t,dt,false,true);}
     if(k>=1){st='talk';st0=now;}}
   else if(st==='talk'){DISTRACT=1;ENV.headYaw=Math.min(who==='mom'?.9:1.4,e*1.5);
-    if(who==='mom'){liveFly(mom,t,dt,e>7.5);mom.position.y=SPOT.y+Math.sin(t*2)*.05;mom.userData.buzz=Math.max(mom.userData.buzz,.6);
-      bub('momBub',e<8?'<b>МАМА</b>'+momLine:'',mom.userData.head,.55);
-      bub('sonBub',e>3.2&&e<8?'<b>МУХА</b>'+(crashed?'Мам! Я из-за тебя разбился!':sonLine):'',head,.5);}
+    if(who==='mom'){liveFly(mom,t,dt,e>8.7);mom.position.y=SPOT.y+Math.sin(t*2)*.05;mom.userData.buzz=Math.max(mom.userData.buzz,.6);
+      bub('momBub',e<9.2?'<b>МАМА</b>'+(e<6?talk.m:crashed?'Ой… Ну прости, сынок.':passedT?'Ой, молодец какой! Ну доигрывай.':talk.r):'',mom.userData.head,.55);
+      bub('sonBub',e>3.2&&e<9.2?'<b>МУХА</b>'+(crashed?'Мам! Я из-за тебя разбился!':passedT?'Мам, смотри! Трубу прошёл!':sonLine):'',head,.5);}
     else{liveFly(dad,t,dt,false,true);if(!dadLines&&e>2.6)dadLines=sonToDad();
       bub('momBub',e<8?'<b>ПАПА</b>'+(e<5.2||!dadLines?'Ты там выигрываешь, сынок?':dadLines[1]):'',dad.userData.head,.55);
       bub('sonBub',e>2.6&&e<8&&dadLines?'<b>МУХА</b>'+dadLines[0]:'',head,.5);}
-    if(e>8.2){st='leave';st0=now;$('momBub').style.display=$('sonBub').style.display='none';}}
-  else if(st==='leave'){const k=Math.min(1,e/(who==='mom'?3:1.2));
+    if(e>(who==='mom'?9.4:8.2)){st='leave';st0=now;$('momBub').style.display=$('sonBub').style.display='none';if(who==='mom')play('wing',0,3);}}
+  else if(st==='leave'){const k=Math.min(1,e/(who==='mom'?3:1.2));   // уходят и дверь не закрывают
     if(who==='mom'){mom.position.copy(bez(SPOT,DOOR_OUT,DOOR_IN,k));face(mom,DOOR_IN.x,DOOR_IN.z);liveFly(mom,t,dt,true);}
     else{dad.position.lerpVectors(DAD_SPOT,new THREE.Vector3(RX0-.9,.35,7.7),k);liveFly(dad,t,dt,false,true);}
-    DISTRACT=0;ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);if(k>=1){st='close';st0=now;mom.visible=dad.visible=false;}}
-  else if(st==='close'){doorPivot.rotation.y=easeDoor(1-e/1.2);ENV.headYaw=Math.max(0,(ENV.headYaw||0)-dt*1.5);camBack(Math.min(1,e/1.2));
-    if(e>1.2){doorPivot.rotation.y=0;st='idle';st0=now;controls.enabled=!AUTO;next=now+(FAST?20000:(150+Math.random()*150)*1000);}}};
+    ENV.headYaw=Math.max(.5,(ENV.headYaw||0)-dt*1.5);if(k>=1){st='notice';st0=now;mom.visible=dad.visible=false;
+      HOME={p:fly.position.clone(),ry:fly.rotation.y};{const L=SIGH.concat(SIGH_WHO[who]);sigh=who==='mom'&&/сквозняк/.test(talk.m)?'Мам! Сама же про сквозняк говорила!':L[Math.random()*L.length|0];}done=DONE[Math.random()*DONE.length|0];}}
+  else if(st==='notice'){camMove(SHOT[who],{p:SHOT.door.p,t:SHOT.door.t.clone().lerp(fly.position,.3)},e/1.6);ENV.headYaw=.5+.2*Math.sin(e*3);   // смотрит на открытую дверь, вздыхает
+    bub('sonBub',e>.3?'<b>МУХА</b>'+sigh:'',head,.5);
+    if(e>2.6){st='takeoff';st0=now;flyFrom=HOME.p.clone();flyTo=HOME.p.clone().add(new THREE.Vector3(0,1.3,0));play('wing',0,10.8);}}
+  else if(st==='takeoff'){const k=Math.min(1,e/.9);ENV.air=k;ENV.buzz=Math.min(1,k*2);ENV.headYaw=Math.max(0,.5-k);
+    fly.position.lerpVectors(flyFrom,flyTo,ez(k));fly.position.y+=Math.sin(t*9)*.03*k;bub('sonBub',k<.6?'<b>МУХА</b>'+sigh:'',head,.5);
+    const P=pushPos(DOOR_OPEN);fly.rotation.y=angL(HOME.ry,yawTo(P.x-HOME.p.x,P.z-HOME.p.z),ez((k-.3)/.7));
+    if(k>=1){st='go';st0=now;flyFrom=fly.position.clone();flyTo=pushPos(DOOR_OPEN);flyCtl=flyFrom.clone().lerp(flyTo,.5);flyCtl.y+=1.4;}}
+  else if(st==='go'){const k=Math.min(1,e/2.6);flyAlong(k,t,yawTo(-Math.cos(DOOR_OPEN),Math.sin(DOOR_OPEN)));
+    if(k>=1){st='push';st0=now;slammed=false;play('creak',0,1.5);}}
+  else if(st==='push'){const k=Math.min(1,e/1.7),kk=k*k,th=DOOR_OPEN*(1-kk);   // толкает дверь носом, ускоряясь
+    doorPivot.rotation.y=th;fly.position.copy(pushPos(th));fly.position.y+=Math.sin(t*9)*.02;fly.rotation.y=yawTo(-Math.cos(th),Math.sin(th));fly.rotation.z=-.08;
+    if(k>=1&&!slammed){slammed=true;doorPivot.rotation.y=0;play('slam');st='proud';st0=now;}}
+  else if(st==='proud'){doorPivot.rotation.y=e<.25?.03*Math.sin(e*40)*(1-e/.25):0;   // дверь вздрогнула от удара
+    const P=pushPos(0),back=Math.min(1,e/.5)*.45;fly.position.set(P.x+back,FLY_Y+Math.sin(t*9)*.03,P.z);fly.rotation.z=angL(fly.rotation.z,0,.1);
+    bub('sonBub',e>.3?'<b>МУХА</b>'+done:'',head,.5);
+    if(e>2){st='back';st0=now;flyFrom=fly.position.clone();flyTo=HOME.p.clone().add(new THREE.Vector3(0,1.3,0));flyCtl=flyFrom.clone().lerp(flyTo,.5);flyCtl.y+=1.2;}}
+  else if(st==='back'){const k=Math.min(1,e/2.6);flyAlong(k,t,HOME.ry);bub('sonBub',k<.25?'<b>МУХА</b>'+done:'',head,.5);
+    if(k>=1){st='land';st0=now;flyFrom=fly.position.clone();fly.rotation.z=0;}}
+  else if(st==='land'){const k=Math.min(1,e/1.1);ENV.air=1-ez(k);ENV.buzz=Math.max(0,1-k*1.3);
+    fly.position.lerpVectors(flyFrom,HOME.p,ez(k));fly.rotation.y=angL(fly.rotation.y,HOME.ry,.2);if(camFrom)camMove({p:SHOT.door.p,t:SHOT.door.t.clone().lerp(flyFrom,.3)},camFrom,k);
+    if(k>=1){if(crashAway){fly.position.copy(HOME.p);fly.rotation.set(0,HOME.ry,0);ENV.air=0;ENV.buzz=0;st='settle';st0=now;}else finish(now);}}
+  else if(st==='settle'){bub('sonBub',e<3?'<b>МУХА</b>Пока дверь закрывал — разбился…':'',head,.5);if(e>3)finish(now);}};
+if(qs.has('debug')){window.__cam=(P,T,d)=>{camera.position.set(...P);controls.target.set(...T);camera.lookAt(controls.target);if(d!=null)doorPivot.rotation.y=d;};window.__shot=()=>SHOT;}
+if(qs.has('debug'))window.__dbg=()=>({st,e:(performance.now()-st0)/1000,fly:fly.position.toArray().map(v=>+v.toFixed(2)),door:+doorPivot.rotation.y.toFixed(2)});
 ENV.ownsCamera=()=>st!=='idle'&&CAMFOCUS;
 } // ======== /МАМА ========
 
@@ -906,7 +962,7 @@ const LEGS=[ // hip(local), rest foot(local xz), femur, tibia
 fly.updateMatrixWorld(true);
 LEGS.forEach(l=>{l.fem=seg(.035);l.tib=seg(.026);l.tar=seg(.018);
   l.rest=fly.localToWorld(new THREE.Vector3(l.foot[0],0,l.foot[1]));l.rest.y=DESK_Y+.02;l.target=l.rest.clone();l.cur=l.rest.clone();});
-const UP=new THREE.Vector3(0,1,0);
+const UP=new THREE.Vector3(0,1,0),AIRV=new THREE.Vector3();
 function solveLeg(l){
   const H=body.localToWorld(new THREE.Vector3(...l.hip)), F=l.cur;
   const dir=new THREE.Vector3().subVectors(F,H);let d=dir.length();dir.normalize();
@@ -916,7 +972,7 @@ function solveLeg(l){
   const pref=UP.clone().add(out.multiplyScalar(.7));const bend=pref.sub(dir.clone().multiplyScalar(pref.dot(dir))).normalize();
   const K=H.clone().add(dir.clone().multiplyScalar(along)).add(bend.multiplyScalar(h));
   const Fend=H.clone().add(dir.clone().multiplyScalar(d));
-  const T=Fend.clone().add(new THREE.Vector3().subVectors(Fend,H).setY(0).normalize().multiplyScalar(.16));T.y=Math.max(DESK_Y+.01,Fend.y-.03);
+  const T=Fend.clone().add(new THREE.Vector3().subVectors(Fend,H).setY(0).normalize().multiplyScalar(.16));T.y=ENV.air>0?Fend.y-.03:Math.max(DESK_Y+.01,Fend.y-.03);
   place(l.fem,H,K);place(l.tib,K,Fend);place(l.tar,Fend,T);}
 
 // ================= brain hologram: real soma positions, real per-tick spikes =================
@@ -1075,10 +1131,11 @@ function flappyState(s){
   if(FL.cur)FL.interval=Math.min(4000,Math.max(300,(performance.now()-FL.tRecv)*.7+FL.interval*.3));FL.cur=s;FL.tRecv=performance.now();
   $('flsc').textContent=s.score;if(s.baseline!=null){FL.base=s.baseline;$('flbase').textContent=s.baseline.toFixed(2)+(s.flap_rate!=null?` · взмахов ${Math.round(s.flap_rate*100)}%`:'');}$('flatt').textContent='#'+s.attempt;$('flbest').textContent=s.best;
   $('fllr').textContent=`${s.left_hz.toFixed(1)} / ${s.right_hz.toFixed(1)} Гц`;$('flflap').className=s.flap?'on':'';
-  if(s.flap&&!DISTRACT){flapFx={t0:performance.now(),kind:'flap'};pressKey(18+(Math.random()*6|0),0x3dff9a);play('flap');}
+  if(!s.crashed&&!s.passed)brainNote(s);
+  if(s.flap){play('fflap',.05);if(!DISTRACT){flapFx={t0:performance.now(),kind:'flap'};pressKey(18+(Math.random()*6|0),0x3dff9a);}}
   if((s.passed||s.crashed||FL.tickerAt!==s.attempt)&&ENV.redraw){FL.tickerAt=s.attempt;ENV.redraw();}
-  if(s.passed){flapFx={t0:performance.now(),kind:'reward'};play('reward');toast('+1<small>труба пройдена · дофамин</small>','BUY');}
-  if(s.crashed){if(window.MOM_EVENT)MOM_EVENT('crash');flapFx={t0:performance.now(),kind:'crash'};play('aversive');toast(`БАМ!<small>попытка #${s.attempt}: ${s.score} · наказание</small>`,'SELL');}}
+  if(s.passed){if(window.MOM_EVENT)MOM_EVENT('pass');flapFx={t0:performance.now(),kind:'reward'};play('fpass');play('reward',.35);toast('+1<small>труба пройдена · дофамин</small>','BUY');}
+  if(s.crashed){if(window.MOM_EVENT)MOM_EVENT('crash');flapFx={t0:performance.now(),kind:'crash'};play('fcrash');toast(`БАМ!<small>попытка #${s.attempt}: ${s.score} · наказание</small>`,'SELL');}}
 function flCurve(){const c=$('flcurve'),g=c.getContext('2d'),W=c.width,H=c.height,a=FL.attempts;g.clearRect(0,0,W,H);if(!a.length)return;
   const n=a.length,mx=Math.max(3,...a.map(x=>x.score)),X=i=>6+(W-12)*(n<2?.5:i/(n-1)),Y=v=>H-6-(H-12)*v/mx;
   g.fillStyle='#56618a';a.forEach((x,i)=>g.fillRect(X(i)-1,Y(x.score)-1,3,3));
@@ -1176,7 +1233,28 @@ const SFX={
   buy(t){[988,1319].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:4000}));tone(1976,t+.16,.5,{g:.08});},
   sell(t){[1319,988].forEach((f,i)=>tone(f,t+i*.08,.35,{type:'square',g:.12,lp:3000}));tone(494,t+.16,.5,{type:'triangle',g:.15});},
   flap(t){tone(760,t,.06,{type:'square',g:.04,lp:3000});},
-  creak(t){tone(180,t,.9,{type:'sawtooth',g:.05,to:120,lp:600});tone(260,t+.35,.6,{type:'sawtooth',g:.03,to:200,lp:500});},
+  creak(t,d=1.3){ // скрип петель: тональный визг, который «заедает» (stick-slip) + шорох дерева
+    const n=32,fc=new Float32Array(n),rc=new Float32Array(n),f0=560+Math.random()*160;
+    for(let i=0;i<n;i++){const k=i/(n-1);fc[i]=f0*(1+.35*Math.sin(k*Math.PI*(1.3+Math.random()*.2))+.06*Math.sin(k*23)+.04*(Math.random()-.5));rc[i]=18+48*Math.sin(k*Math.PI)+Math.random()*14;}
+    const o=AC.createOscillator(),o2=AC.createOscillator(),am=AC.createGain(),lfo=AC.createOscillator(),lg=AC.createGain(),bp=AC.createBiquadFilter(),v=AC.createGain();
+    o.type='sawtooth';o2.type='triangle';o.frequency.setValueCurveAtTime(fc,t,d);o2.frequency.setValueCurveAtTime(fc.map(x=>x*2.02),t,d);
+    lfo.type='square';lfo.frequency.setValueCurveAtTime(rc,t,d);lg.gain.value=.5;am.gain.value=.5;lfo.connect(lg).connect(am.gain);
+    bp.type='bandpass';bp.frequency.value=f0*1.6;bp.Q.value=2.5;
+    v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(.32,t+.12);v.gain.setValueAtTime(.32,t+d*.7);v.gain.linearRampToValueAtTime(0,t+d);
+    o.connect(am);o2.connect(am);am.connect(bp).connect(v).connect(MASTER);[o,o2,lfo].forEach(x=>{x.start(t);x.stop(t+d+.05);});
+    noiz(t,d,{g:.08,f:420,q:1.2});},
+  slam(t){ // дверь захлопнулась: глухой удар, щелчок защёлки, дребезг
+    tone(120,t,.45,{g:.55,to:42});noiz(t,.3,{g:.5,type:'lowpass',f:320});noiz(t+.07,.035,{g:.35,type:'highpass',f:2600});noiz(t+.1,.18,{g:.08,f:1700,q:6});},
+  wing(t,d=2.5){ // жужжание крыльев гостьи/мухи
+    const o=AC.createOscillator(),o2=AC.createOscillator(),lf=AC.createOscillator(),lg=AC.createGain(),fl=AC.createBiquadFilter(),v=AC.createGain();
+    o.type='sawtooth';o.frequency.value=196;o2.type='sawtooth';o2.frequency.value=203;lf.frequency.value=31;lg.gain.value=.03;lf.connect(lg).connect(v.gain);
+    fl.type='lowpass';fl.frequency.value=1000;v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(.05,t+.25);v.gain.setValueAtTime(.05,t+d-.4);v.gain.linearRampToValueAtTime(0,t+d);
+    o.connect(fl);o2.connect(fl);fl.connect(v).connect(MASTER);[o,o2,lf].forEach(x=>{x.start(t);x.stop(t+d+.05);});},
+  // ---- Flappy Fly ----
+  fflap(t){noiz(t,.12,{g:.3,f:1100,q:1.4,a:.01});tone(420,t,.09,{type:'square',g:.035,to:760,lp:2400});},
+  fpass(t){tone(988,t,.09,{type:'square',g:.16,lp:5000});tone(1319,t+.08,.32,{type:'square',g:.16,lp:5000});tone(2637,t+.1,.25,{g:.05});},
+  fcrash(t){tone(160,t,.4,{g:.5,to:40});noiz(t,.28,{g:.45,type:'lowpass',f:900});tone(330,t+.02,.35,{type:'triangle',g:.14,to:110});tone(900,t+.18,.7,{g:.05,to:180});},
+  note(t,f,acc){tone(f,t,.55,{type:'triangle',g:acc?.07:.04});tone(f*2,t,.25,{g:acc?.02:.01});},
   bell(t){[880,1320,1760].forEach((f,i)=>tone(f,t,2.2-i*.5,{type:'sine',g:.05/(i+1)}));},
   choir(t){[261.6,329.6,392,523.2].forEach((f,i)=>[-6,0,7].forEach(dt=>{const o=AC.createOscillator(),bp=AC.createBiquadFilter(),v=AC.createGain();o.type='sawtooth';o.frequency.value=f;o.detune.value=dt;
     bp.type='bandpass';bp.frequency.value=800+i*120;bp.Q.value=4;v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(.022,t+.9);v.gain.linearRampToValueAtTime(0,t+3.2);o.connect(bp).connect(v).connect(MASTER);o.start(t);o.stop(t+3.3);}));},
@@ -1189,7 +1267,17 @@ const SFX={
     o.connect(fl).connect(v).connect(MASTER);o.start(t);lf.start(t);o.stop(t+2.3);lf.stop(t+2.3);},
   aversive(t){tone(233,t,.7,{type:'sawtooth',g:.16,to:98,lp:700});tone(220,t+.05,.7,{type:'sawtooth',g:.1,to:92,lp:500});},
   gameover(t){[392,370,349,294].forEach((f,i)=>tone(f,t+i*.45,i<3?.45:1.6,{type:'triangle',g:.2,to:i<3?null:280}));}};
-function play(name,delay=0){if(!AC||AC.state!=='running'||!SFX[name])return;SFX[name](AC.currentTime+delay);}
+let NBUF=null;
+function noiz(t,d,{g=.2,type='bandpass',f=1000,q=1,a=.005}={}){ // отрезок белого шума через фильтр
+  if(!NBUF){NBUF=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const c=NBUF.getChannelData(0);for(let i=0;i<c.length;i++)c[i]=Math.random()*2-1;}
+  const s=AC.createBufferSource(),fl=AC.createBiquadFilter(),v=AC.createGain();s.buffer=NBUF;s.loop=true;fl.type=type;fl.frequency.value=f;fl.Q.value=q;
+  v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(g,t+a);v.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(fl).connect(v).connect(MASTER);s.start(t,Math.random());s.stop(t+d+.05);}
+function play(name,delay=0,...args){if(!AC||AC.state!=='running'||!SFX[name])return;SFX[name](AC.currentTime+delay,...args);}
+// «музыка мозга» во Flappy: каждый шаг игры — тихая нота, высота = насколько правый DNp20 сильнее левого (&music=0 выключает)
+const PENTA=[262,294,330,392,440,523,587,659,784,880];
+const NOTE_H=[];
+function brainNote(s){if(qs.get('music')==='0'||s.diff_hz==null)return;NOTE_H.push(s.diff_hz);if(NOTE_H.length>60)NOTE_H.shift();
+  const r=NOTE_H.filter(v=>v<s.diff_hz).length/NOTE_H.length;play('note',0,PENTA[Math.min(9,Math.floor(r*10))],s.flap);}
 
 const RU={
   side:{BUY:'КУПИТЬ',SELL:'ПРОДАТЬ',HOLD:'ДЕРЖАТЬ'},
@@ -1366,6 +1454,7 @@ function animate(){
   if(MODE==='flappy'){trading=true;if(frameN%2===0)drawFlappyScreen();
     if(flapFx){const k=(now-flapFx.t0)/700;if(k<1){const s1=Math.sin(k*Math.PI);
       if(flapFx.kind==='flap')tap=s1;else if(flapFx.kind==='reward'){buzz=s1;eyeGlow=.7*s1;}else shiver=.06*s1;}}}
+  buzz=Math.max(buzz,ENV.buzz||0);
   // wings: folded at rest, open and buzz on reward
   wings.forEach(w=>{const sd=w.userData.sd;w.rotation.set(sd*(.12+buzz*(.5+Math.sin(t*70)*.45)),sd*(WY+buzz*.7),.1+Math.sin(t*1.3)*.02);});
   // body idle
@@ -1380,7 +1469,8 @@ function animate(){
     if(i<2&&groom>0){const side=i===0?1:-1;tmp.copy(headW).add(fwd.clone().multiplyScalar(.28)).add(new THREE.Vector3(0,-.18+Math.sin(t*9)*.05,0));
       tmp.add(new THREE.Vector3().crossVectors(fwd,UP).multiplyScalar(side*(.06+Math.sin(t*9+side)*.05)));l.target.lerpVectors(l.rest,tmp,groom);}
     if(i===0&&tap>0){if(ENV.gesture)ENV.gesture(tmp,headW,fwd);else{keys[20].getWorldPosition(tmp);tmp.y+=.06;}l.target.lerpVectors(l.rest,tmp,tap);}
-    l.cur.lerp(l.target,.25);solveLeg(l);});
+    if(ENV.air>0){AIRV.set(l.foot[0]*.55,-.9,l.foot[1]*.5);fly.localToWorld(AIRV);l.target.lerp(AIRV,ENV.air);}   // в полёте лапки поджаты под брюшко
+    l.cur.lerp(l.target,ENV.air>0?1-Math.pow(.4,dt*60):.25);solveLeg(l);});
   rings.forEach((r,i)=>r.scale.setScalar(1+Math.sin(t*6+i)*.04*(1+buzz*6)));
   if(ENV.update)ENV.update(t,dt,buzz);
   if(holoPts&&holo.visible){brainFade=Math.max(.3,brainFade-dt*.18);holoMat.uniforms.uFade.value=brainFade;holoMat.uniforms.uT.value=t;holoMat.uniforms.uScale.value=innerHeight*.5;

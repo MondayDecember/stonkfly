@@ -36,6 +36,7 @@ html,body{margin:0;height:100%;background:#05070f;color:#dfe8ff;font-family:"Cou
 </style>
 </head>
 <body>
+<button id="snd" style="position:fixed;left:50%;bottom:1.5rem;transform:translateX(-50%);z-index:9;font:inherit;font-size:1rem;color:#dfe8ff;background:rgba(5,10,25,.9);border:1px solid #5cf;padding:.5rem 1rem;cursor:pointer;display:none">включить звук</button>
 <div id="wrap">
   <div id="game" class="panel">
     <canvas id="gc"></canvas>
@@ -79,10 +80,31 @@ const fmt=(n,d=0)=>Number(n).toLocaleString('ru-RU',{minimumFractionDigits:d,max
 async function getJSON(u){const r=await fetch(u+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;return r.json();}
 
 // ---------- звук ----------
-let AC=null;function ac(){if(!AC)try{AC=new AudioContext();}catch{}AC&&AC.resume();}
-addEventListener('pointerdown',ac);addEventListener('keydown',ac);
-function beep(f,d,type='square',v=.06,to){if(!AC||AC.state!=='running')return;const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);
-  g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+d);}
+let AC=null,MASTER=null,NBUF=null;const VOL=+(qs.get('vol')||.6);
+function ac(){if(!AC)try{AC=new AudioContext();MASTER=AC.createGain();MASTER.gain.value=VOL;const c=AC.createDynamicsCompressor();MASTER.connect(c).connect(AC.destination);
+  const dl=AC.createDelay(),fb=AC.createGain(),wet=AC.createGain();dl.delayTime.value=.16;fb.gain.value=.25;wet.gain.value=.2;MASTER.connect(dl);dl.connect(fb).connect(dl);dl.connect(wet).connect(c);
+  AC.onstatechange=sndBtn;}catch{}AC&&AC.resume().then(sndBtn,sndBtn);}
+function sndBtn(){const b=$('snd');if(b)b.style.display=AC&&AC.state==='running'?'none':'block';}
+addEventListener('pointerdown',ac);addEventListener('keydown',e=>{if(e.code==='KeyM'&&MASTER)MASTER.gain.value=MASTER.gain.value>0?0:VOL;else ac();});
+setTimeout(()=>{ac();sndBtn();},300);   // в OBS звук включается сам, в браузере нужен клик
+const ok=()=>AC&&AC.state==='running';
+function tone(f,t,d,{type='sine',g=.3,to=null,a=.01,lp=null}={}){const o=AC.createOscillator(),v=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);
+  v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(g,t+a);v.gain.exponentialRampToValueAtTime(.0001,t+d);let n=o;if(lp){const fl=AC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=lp;n.connect(fl);n=fl;}
+  n.connect(v).connect(MASTER);o.start(t);o.stop(t+d+.05);}
+function noiz(t,d,{g=.2,type='bandpass',f=1000,q=1,a=.005}={}){if(!NBUF){NBUF=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const c=NBUF.getChannelData(0);for(let i=0;i<c.length;i++)c[i]=Math.random()*2-1;}
+  const s=AC.createBufferSource(),fl=AC.createBiquadFilter(),v=AC.createGain();s.buffer=NBUF;s.loop=true;fl.type=type;fl.frequency.value=f;fl.Q.value=q;
+  v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(g,t+a);v.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(fl).connect(v).connect(MASTER);s.start(t,Math.random());s.stop(t+d+.05);}
+const SFX={
+  flap(t){noiz(t,.12,{g:.3,f:1100,q:1.4,a:.01});tone(420,t,.09,{type:'square',g:.035,to:760,lp:2400});},                                      // взмах: шорох крыльев
+  pass(t){tone(988,t,.09,{type:'square',g:.16,lp:5000});tone(1319,t+.08,.32,{type:'square',g:.16,lp:5000});tone(2637,t+.1,.25,{g:.05});      // труба: «монетка»
+    [523,659,784,1047].forEach((f,i)=>tone(f,t+.35+i*.07,.8,{type:'triangle',g:.1}));},                                                     // и дофамин
+  crash(t){tone(160,t,.4,{g:.5,to:40});noiz(t,.28,{g:.45,type:'lowpass',f:900});tone(330,t+.02,.35,{type:'triangle',g:.14,to:110});tone(900,t+.18,.7,{g:.05,to:180});},
+  note(t,f,acc){tone(f,t,.55,{type:'triangle',g:acc?.07:.04});tone(f*2,t,.25,{g:acc?.02:.01});}};
+function play(n,...a){if(ok())SFX[n](AC.currentTime+.02,...a);}
+// «музыка мозга»: каждый шаг — тихая нота, чем сильнее правый DNp20 относительно левого, тем выше (&music=0 выключает)
+const PENTA=[262,294,330,392,440,523,587,659,784,880],NOTE_H=[];
+function brainNote(s){if(qs.get('music')==='0'||s.diff_hz==null)return;NOTE_H.push(s.diff_hz);if(NOTE_H.length>60)NOTE_H.shift();
+  play('note',PENTA[Math.min(9,Math.floor(NOTE_H.filter(v=>v<s.diff_hz).length/NOTE_H.length*10))],s.flap);}
 
 // ---------- новый шаг мозга ----------
 function onState(s){
@@ -98,9 +120,10 @@ function onState(s){
   $('flap').className=s.flap?'on':'';$('sp').textContent=fmt(s.spikes);$('mem').textContent=s.changed_edges!=null?fmt(s.changed_edges)+' из 7 835':'—';
   $('ms').textContent=(s.world.STEP_MS|0)+' мс мозга · счёт '+(s.compute??0).toFixed(1)+' с';
   if(!demo)$('eyeImg').src=BASE+'eye.png?t='+Date.now();
-  if(s.flap)beep(880,.08,'square',.04,1200);
-  if(s.passed){beep(1320,.25,'triangle',.08);flash('+1','#3dff9a','труба пройдена · дофамин');}
-  if(s.crashed){beep(200,.5,'sawtooth',.08,60);flash('БАМ!','#ff5470',`попытка #${s.attempt}: ${s.score} ${plural(s.score)} · наказание`);}
+  if(!s.passed&&!s.crashed)brainNote(s);
+  if(s.flap)play('flap');
+  if(s.passed){play('pass');flash('+1','#3dff9a','труба пройдена · дофамин');}
+  if(s.crashed){play('crash');flash('БАМ!','#ff5470',`попытка #${s.attempt}: ${s.score} ${plural(s.score)} · наказание`);}
 }
 function plural(n){n=Math.abs(n)%100;const k=n%10;return n>10&&n<20?'труб':k===1?'труба':k>=2&&k<=4?'трубы':'труб';}
 let msgT;function flash(t,col,sub){const m=$('msg');m.innerHTML=t+'<small>'+sub+'</small>';m.style.color=col;m.style.textShadow='0 0 1rem '+col;m.style.opacity=1;clearTimeout(msgT);msgT=setTimeout(()=>m.style.opacity=0,1600);}
