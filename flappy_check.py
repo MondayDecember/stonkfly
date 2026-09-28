@@ -150,6 +150,15 @@ def check_brain(ctl):
         say(f"изменение силы: среднее {np.abs(ratio[ch] - 1).mean() * 100:.1f}%, самое большое {np.abs(ratio - 1).max() * 100:.1f}%, "
             f"ослаблены {int((ratio < 1 - 1e-6).sum())}, усилены {int((ratio > 1 + 1e-6).sum())}")
     if ff.LEVEL.startswith("mb"):
+        mb = np.asarray(b.circuit["mb"])
+        post = b.post[e]
+        for name, cells in (("MBON07 (α1, «против», учит удар снизу)", mb[:4]), ("MBON11 (γ1, «за», учит удар сверху)", mb[4:])):
+            m = np.isin(post, cells)
+            if not m.any():
+                continue
+            r = ratio[m]
+            say(f"  {name}: {int(m.sum())} синапсов, средняя сила {r.mean() * 100:.0f}% от исходной, "
+                f"ослаблены {int((r < 1 - 1e-6).sum())}, усилены {int((r > 1 + 1e-6).sum())}")
         say("в этом сезоне взмах решает сам выход памяти (MBON07/MBON11), так что выученное доходит до решения напрямую")
         return
     mb, dec = b.circuit["mb"], ctl.decoder
@@ -258,12 +267,57 @@ def check_ablation(ctl, n):
         say("→ память меняет решения, но пока без явной пользы")
 
 
+def probe_frames(reps=3, heights=8, seed=11):
+    """Птица на разной высоте перед трубой с проходом посередине, в случайном порядке, по 3 кадра на положение."""
+    rng = np.random.default_rng(seed)
+    g = ff.Game(rng)
+    gy = (14 + ff.GAP / 2 + ff.H - ff.GROUND - 10 - ff.GAP / 2) / 2
+    ys = np.linspace(20, ff.H - ff.GROUND - 12, heights)
+    order = [y for _ in range(reps) for y in rng.permutation(ys)]
+    fr, lab = [], []
+    for y in order:
+        for k in range(3):
+            g.pipes, g.y = [[ff.BIRD_X + 70 - 4 * k, gy]], float(y)
+            fr.append(g.frame())
+            lab.append((y, k))
+    return fr, lab, gy
+
+
+def check_probe(ctl):
+    say("\n=== 4. НАСТРОЙКА НА ВЫСОТУ: чем ниже птица, тем сильнее «махать»? ===")
+    b = ctl.brain
+    learned = b.weight[b.circuit["edges"]].copy()
+    fr, lab, gy = probe_frames()
+    say(f"  {len(fr)} кадров: птица на 8 высотах перед проходом (его середина на {gy:.0f}), порядок случайный")
+    _, r1, _ = run(ctl, fr, learned)
+    _, r0, _ = run(ctl, fr, b.baseline_plastic.copy())
+    b.weight[b.circuit["edges"]] = learned
+    s1, s0 = mb_scores(r1, r0)
+    ys = np.array([y for y, _ in lab])
+    use = np.array([k > 0 for _, k in lab])   # первый кадр на новом месте — мозг ещё переключается
+    say("  высота птицы (0 — верх экрана) | решение «махать»: выученная память | исходная")
+    for y in np.unique(ys):
+        m = use & (ys == y)
+        where = "ниже прохода" if y > gy + ff.GAP / 4 else "выше прохода" if y < gy - ff.GAP / 4 else "в проходе"
+        say(f"    {y:5.0f} ({where:>12}):   {s1[m].mean():+6.2f}   |   {s0[m].mean():+6.2f}")
+    c1 = np.corrcoef(ys[use], s1[use])[0, 1]
+    c0 = np.corrcoef(ys[use], s0[use])[0, 1]
+    say(f"  связь «ниже → махать сильнее» (корреляция, +1 идеально, −1 наоборот): выученная {c1:+.2f}, исходная {c0:+.2f}")
+    if abs(c0) > .3:
+        say("→ выход памяти от рождения чувствует высоту птицы" + (", и в правильную сторону" if c0 > 0 else ", но в обратную сторону: машет, когда птица высоко"))
+    else:
+        say("→ от рождения выход памяти высоту птицы почти не различает")
+    say("→ обучение " + ("сдвинуло в правильную сторону" if c1 - c0 > .1 else "сдвинуло в неправильную сторону" if c1 - c0 < -.1 else "эту связь почти не изменило"))
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--quick", action="store_true", help="только счёт")
     p.add_argument("--frames", type=int, default=120)
+    p.add_argument("--probe", action="store_true", help="только проверка настройки на высоту птицы (~5 минут)")
     args = p.parse_args()
-    check_scores()
+    if not args.probe:
+        check_scores()
     if args.quick:
         return
     ckpt = ff.OUT / "brain.npz"
@@ -277,7 +331,9 @@ def main():
     ctl.restore(ckpt)
     ctl.brain.weights_frozen = True
     check_brain(ctl)
-    check_ablation(ctl, args.frames)
+    if not args.probe:
+        check_ablation(ctl, args.frames)
+    check_probe(ctl)
 
 
 if __name__ == "__main__":
