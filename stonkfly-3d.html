@@ -46,10 +46,10 @@ canvas{display:block}
 #oa.YES{color:#3dff9a;text-shadow:0 0 1rem #3dff9a}#oa.NO{color:#ff5470;text-shadow:0 0 1rem #ff5470}#oa.MAYBE{color:#ffd06a}
 #dream{right:1.5rem;bottom:17.5rem;width:15rem;display:none}#dream .h{display:flex;justify-content:space-between;font-size:.75rem;color:#9fb3e8;border-left:.2rem solid #b070ff;padding-left:.4rem;margin-bottom:.35rem}
 #dream img{width:100%;display:block;border:1px solid #2a3d6b}#dc{font-size:.7rem;color:#c8b8ff;margin-top:.3rem}
-#flhud{right:1.5rem;top:1.3rem;width:19rem;display:none}
-#flhud .t{font-size:1.5rem;letter-spacing:.14em;text-shadow:0 0 .6rem #6af}#flhud .sc{font-size:3rem;margin:.2rem 0}
-#flhud .row{display:flex;justify-content:space-between;font-size:.85rem;margin-top:.2rem;color:#9fb3e8}#flhud .row b{color:#e8eeff;font-weight:normal;font-variant-numeric:tabular-nums}
-#flhud canvas{width:100%;height:5rem;display:block;margin-top:.5rem;border-top:1px solid #16213f}
+#flhud,#clhud{right:1.5rem;top:1.3rem;width:19rem;display:none}
+#flhud .t,#clhud .t{font-size:1.5rem;letter-spacing:.14em;text-shadow:0 0 .6rem #6af}#flhud .sc{font-size:3rem;margin:.2rem 0}
+#flhud .row,#clhud .row{display:flex;justify-content:space-between;gap:.6rem;font-size:.85rem;margin-top:.2rem;color:#9fb3e8}#flhud .row b,#clhud .row b{color:#e8eeff;font-weight:normal;font-variant-numeric:tabular-nums;text-align:right}
+#flhud canvas,#clhud canvas{width:100%;height:5rem;display:block;margin-top:.5rem;border-top:1px solid #16213f}
 #flflap{margin-top:.4rem;text-align:center;letter-spacing:.2em;border:1px solid #2a3d6b;color:#56618a;padding:.15rem}#flflap.on{color:#3dff9a;border-color:#3dff9a;text-shadow:0 0 .5rem #3dff9a}
 #sermon{position:fixed;left:50%;bottom:5.5rem;transform:translateX(-50%);max-width:46rem;text-align:center;font-size:1.25rem;line-height:1.35;color:#fff4d8;text-shadow:0 0 .6rem #000,0 .1rem .2rem #000;display:none;transition:opacity .6s;font-style:italic}
 #preach{right:1.5rem;top:1.3rem;width:25rem;display:none}#preach .s{font-size:2.2rem;letter-spacing:.1em;color:#ffe6b0;text-shadow:0 0 .6rem #ffb040;text-align:right}
@@ -114,6 +114,10 @@ canvas{display:block}
   <div class="row"><span>муха, машущая наугад</span><b id="flbase">—</b></div>
   <div class="row"><span id="fllrN">память: за / против</span><b id="fllr">—</b></div><div id="flflap">ВЗМАХ</div>
   <canvas id="flcurve" width="600" height="160"></canvas><div class="row"><span style="font-size:.68rem">жёлтая: среднее мухи · розовая: наугад</span></div></div>
+<div id="clhud" class="panel"><div class="t">ВЫБОР ЦВЕТА</div><div class="row"><span>сейчас сладкий</span><b id="clsweet">—</b></div>
+  <div class="row"><span>экзаменов</span><b id="clexam">—</b></div><div class="row"><span>верно за последние 100</span><b id="clacc">—</b></div>
+  <div class="row"><span>в среднем по обоим цветам</span><b id="clbal">—</b></div><div class="row"><span>вкус до уроков</span><b id="clpre">—</b></div>
+  <canvas id="clcurve" width="600" height="160"></canvas><div class="row"><span style="font-size:.68rem">жёлтая: верно за 20 экзаменов · розовая: наугад 50% · фон: какой цвет сладкий</span></div></div>
 <div id="sermon"></div>
 <div id="preach" class="panel"><div class="s" id="prState">СЛУШАЕТ ТИШИНУ</div>
   <div class="row"><span>тема</span><b id="prTheme">—</b></div><div class="row"><span>настроение мозга</span><b id="prMood">—</b></div>
@@ -126,7 +130,7 @@ canvas{display:block}
 <button id="snd" style="position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);font:inherit;font-size:1rem;color:#dfe8ff;background:rgba(5,10,25,.9);border:1px solid #5cf;padding:.5rem 1rem;cursor:pointer;display:none">🔊 включить звук</button>
 <div id="over"><span id="overT">GAME OVER</span><small id="overS"></small></div>
 <div id="disc">коннектом мухи дрозофилы торгует BTC на виртуальные $100 · реальные цены Coinbase · эксперимент, не финансовый совет</div>
-<div id="help">ЛКМ: вращать · ПКМ: сдвигать · колесо: зум · C: ссылка с этой камерой · R: сброс · M: звук · B: мозг · S: сезон · L: локация · G: игра/торговля · O: оракул · D: сон · F: FPS</div>
+<div id="help">ЛКМ: вращать · ПКМ: сдвигать · колесо: зум · C: ссылка с этой камерой · R: сброс · M: звук · B: мозг · S: сезон · L: локация · G: торговля → Flappy → цвета · O: оракул · D: сон · F: FPS</div>
 <div id="camMsg" style="position:fixed;left:50%;top:3rem;transform:translateX(-50%);font-size:.9rem;background:rgba(5,10,25,.9);border:1px solid #2a3d6b;padding:.4rem .8rem;display:none"></div>
 
 <script type="module">
@@ -137,7 +141,8 @@ import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
 const qs=new URLSearchParams(location.search);
 const RUN=qs.get('run')||'paper', BASE=`runs/${RUN}/`, STREAM=qs.has('stream');
-let MODE=qs.get('mode')==='flappy'?'flappy':'trade';   // что делает муха за компьютером
+let MODE=['flappy','colors'].includes(qs.get('mode'))?qs.get('mode'):'trade';   // что делает муха за компьютером
+const isGame=()=>MODE==='flappy'||MODE==='colors';
 const FORCE_DEMO=qs.has('demo');let DEMO=FORCE_DEMO;
 const $=id=>document.getElementById(id);
 if(STREAM){setTimeout(()=>$('help').style.display='none',8000);}
@@ -151,7 +156,7 @@ if(qs.get('view')==='full'){VIEW.brain=true;VIEW.season=true;}
 if(qs.has('brain'))VIEW.brain=qs.get('brain')!=='0';
 if(qs.has('season'))VIEW.season=qs.get('season')!=='0';
 function applyView(save){$('season').style.display=VIEW.season&&MODE==='trade'&&LOC!=='mount'?'':'none';
-  if(typeof holo!=='undefined'){holo.visible=(VIEW.brain&&MODE!=='flappy'&&LOC!=='mount')||LOC==='brain';proj.visible=VIEW.brain&&LOC!=='brain'&&LOC!=='mount'&&MODE!=='flappy';$('brainCap').style.visibility=holo.visible&&LOC!=='brain'?'':'hidden';$('brainCap').style.display=VIEW.brain?'':'none';labels.forEach(l=>l.el.style.visibility=holo.visible&&LOC!=='brain'?'':'hidden');}
+  if(typeof holo!=='undefined'){holo.visible=(VIEW.brain&&!isGame()&&LOC!=='mount')||LOC==='brain';proj.visible=VIEW.brain&&LOC!=='brain'&&LOC!=='mount'&&!isGame();$('brainCap').style.visibility=holo.visible&&LOC!=='brain'?'':'hidden';$('brainCap').style.display=VIEW.brain?'':'none';labels.forEach(l=>l.el.style.visibility=holo.visible&&LOC!=='brain'?'':'hidden');}
   if(save&&!qs.has('view'))try{localStorage.setItem('stonkfly-view',JSON.stringify(VIEW));}catch{}}
 addEventListener('keydown',e=>{if(e.code==='KeyO'){VIEW.oracle=!VIEW.oracle;applyView(true);}if(e.code==='KeyD'){VIEW.dream=!VIEW.dream;$('dream').style.display=VIEW.dream&&dreamSeen?'block':'none';applyView(true);}if(e.code==='KeyB'){VIEW.brain=!VIEW.brain;applyView(true);}if(e.code==='KeyS'){VIEW.season=!VIEW.season;applyView(true);}});
 
@@ -182,7 +187,7 @@ const LOC_CAM={room:[-5.2,4.2,7.4,.6,1.1,-.6],floor:[-6.8,3.6,9.8,.6,2.2,-3],tra
 const LOC_BOX={room:[-7.6,-1.3,-2.8,8.1,5.1,10.6],floor:[-19,-1.3,-15,19,9,15],trash:[-7.5,-1,-7.5,7.5,11,7.5],brain:[-26,-18,-26,26,24,26],mount:[-30,-4,-30,30,20,30]};
 if(LOC==='mount')MODE='trade';   // гора — отдельная сцена-проповедь, без игры и компьютера
 const DEF_CAM=LOC_CAM[LOC],CAMKEY='stonkfly-cam-'+LOC;
-addEventListener('keydown',e=>{if(e.code==='KeyG'&&LOC==='mount'){camMsg('на горе муха проповедует, игра — в других локациях');return;}if(e.code==='KeyG'){const u=new URL(location.href);if(MODE==='flappy')u.searchParams.delete('mode');else u.searchParams.set('mode','flappy');location.href=u;}});
+addEventListener('keydown',e=>{if(e.code==='KeyG'&&LOC==='mount'){camMsg('на горе муха проповедует, игра — в других локациях');return;}if(e.code==='KeyG'){const u=new URL(location.href),nx={trade:'flappy',flappy:'colors',colors:'trade'}[MODE];if(nx==='trade')u.searchParams.delete('mode');else u.searchParams.set('mode',nx);location.href=u;}});
 addEventListener('keydown',e=>{if(e.code==='KeyL'){const u=new URL(location.href);u.searchParams.set('loc',LOCS[(LOCS.indexOf(LOC)+1)%LOCS.length]);u.searchParams.delete('cam');try{localStorage.setItem('stonkfly-loc',u.searchParams.get('loc'));}catch{}location.href=u;}});
 if(qs.get('loc'))try{localStorage.setItem('stonkfly-loc',LOC);}catch{}
 function applyCam(c){camera.position.set(c[0],c[1],c[2]);controls.target.set(c[3],c[4],c[5]);controls.update();}
@@ -567,6 +572,7 @@ const tickM=new THREE.Mesh(new THREE.PlaneGeometry(30,1.5),new THREE.MeshBasicMa
 function drawTicker(){const g=tickC.getContext('2d');g.fillStyle='#070402';g.fillRect(0,0,2048,96);
   const r=rows.at(-1);let txt='STONKFLY · ТОРГОВЫЙ ЗАЛ · ';
   if(MODE==='flappy'&&FL.cur){const c=FL.cur;txt=`FLAPPY FLY   ◆   ПОПЫТКА #${c.attempt}   ◆   СЧЁТ ${c.score}   ◆   РЕКОРД ${c.best}   ◆   `;}
+  if(MODE==='colors'&&CL.cur){const m=CL.cur.summary||{};txt=`МУХА ВЫБИРАЕТ ЦВЕТ   ◆   ЭКЗАМЕН #${m.exams||0}   ◆   ВЕРНО ${m.last_acc!=null?Math.round(m.last_acc*100)+'%':'—'}   ◆   САХАР: ${CLRU[CL.cur.sweet]}   ◆   `;}
   if(r){const m=mid(r),p=rows.length>1?mid(rows.at(-2)):m,d=m-p;
     txt=`BTC-USDC ${fmt(m)} ${d>=0?'▲':'▼'}${fmt(Math.abs(d))}   ◆   МУХА: ${RU.side[r.neural.side]}   ◆   БАЛАНС ${fmt(+r.equity_usdc)} USDC   ◆   ${RU.stim[r.neural.stimulus]==='·'?'ТИК #'+r.tick:RU.stim[r.neural.stimulus].toUpperCase()}   ◆   `;}
   g.font='bold 64px monospace';g.fillStyle='#ffb020';g.shadowColor='#ff8a00';g.shadowBlur=12;
@@ -1259,6 +1265,48 @@ function drawFlappyScreen(){const s=FL.cur,g=scrC.getContext('2d'),W=1024,H=600;
     g.font='26px monospace';g.fillStyle='#ffd06a';g.fillText('муха отошла закрыть дверь',W/2,H/2+70);g.textAlign='left';}
   if(SCREEN==='crt'){g.globalCompositeOperation='multiply';g.fillStyle='#3cff70';g.fillRect(0,0,W,H);g.globalCompositeOperation='source-over';g.fillStyle='rgba(0,0,0,.35)';for(let yy=0;yy<H;yy+=4)g.fillRect(0,yy,W,2);}
   scrT.needsUpdate=true;}
+// ================= «Муха выбирает цвет»: урок и экзамен на мониторе =================
+const CL={cur:null,exams:[],lastKey:''},CLC={blue:'#285aff',green:'#28d23c'},CLRU={blue:'СИНИЙ',green:'ЗЕЛЁНЫЙ'};let clFx=null;
+async function colorsPoll(){try{const s=await getJSON('runs/colors/state.json');const k=s.wall+'|'+s.step;if(k!==CL.lastKey){CL.lastKey=k;colorsState(s);}
+    const age=Math.round(Date.now()/1000-s.wall);$('src').textContent=`${tomskClock()} · муха выбирает цвет · `+(age>60?`не отвечает ${age} с…`:`экзамен #${(s.summary?.exams||0)+(s.step==='exam'?1:0)}`);}
+  catch{$('src').textContent=`${tomskClock()} · «Муха выбирает цвет» не запущена: stonkfly apps "… colors", затем stonkfly restart`;}}
+async function colorsExams(){try{const r=await fetch('runs/colors/exams.jsonl?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+  CL.exams=(await r.text()).split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l);}catch{return null;}}).filter(Boolean);clCurve();}catch{}}
+function colorsState(s){CL.cur=s;const sm=s.summary||{};
+  $('clsweet').innerHTML=`<i style="color:${CLC[s.sweet]}">●</i> ${CLRU[s.sweet].toLowerCase()} — сахар`;
+  $('clexam').textContent=sm.exams||0;
+  $('clacc').textContent=sm.last_acc!=null?`${Math.round(sm.last_acc*100)}% (${Math.round(sm.last_ci[0]*100)}–${Math.round(sm.last_ci[1]*100)}%)`:'идут первые экзамены';
+  $('clbal').textContent=sm.balanced!=null?Math.round(sm.balanced*100)+'%':sm.by_sweet?Object.entries(sm.by_sweet).map(([c,v])=>`${CLRU[c].toLowerCase()} ${Math.round(v*100)}%`).join(', '):'—';
+  $('clpre').textContent=sm.pre_blue!=null?`синий ${Math.round(sm.pre_blue*100)}% / зелёный ${Math.round((1-sm.pre_blue)*100)}%`:'меряется…';
+  if(s.step==='lesson'){if(s.kind==='sugar'){play('reward');clFx={t0:performance.now(),kind:'reward'};}else{play('aversive');clFx={t0:performance.now(),kind:'shock'};}}
+  if(s.step==='choice'){pressKey(s.choice==='blue'?18:22,s.choice==='blue'?0x285aff:0x28d23c);clFx={t0:performance.now(),kind:'tap'};
+    const ok=s.last?.correct,pre=s.last?.phase==='pre';play(pre?'bell':ok?'fpass':'veto');
+    toast(`ВЫБРАЛА ${CLRU[s.choice]}<small>${pre?'до уроков: врождённый вкус':ok?'правильно: там сахар':'неправильно: там удар'}</small>`,pre?'BUY':ok?'BUY':'SELL');}
+  if(ENV.redraw)ENV.redraw();}
+function drawColorsScreen(){const s=CL.cur,g=scrC.getContext('2d'),W=1024,H=600;
+  g.fillStyle='#0a0f1f';g.fillRect(0,0,W,H);g.fillStyle='#10193a';g.fillRect(0,0,W,56);
+  g.fillStyle='#e8eeff';g.font='bold 24px monospace';g.fillText('МУХА ВЫБИРАЕТ ЦВЕТ',24,36);
+  if(!s){g.fillStyle='#9fb3e8';g.font='28px monospace';g.textAlign='center';g.fillText('игра не запущена',W/2,H/2);g.textAlign='left';scrT.needsUpdate=true;return;}
+  const sm=s.summary||{};g.font='22px monospace';g.fillStyle='#9fb3e8';g.textAlign='right';g.fillText(`экзамен #${sm.exams||0}`+(sm.last_acc!=null?`   верно ${Math.round(sm.last_acc*100)}%`:''),W-24,36);g.textAlign='left';
+  g.fillStyle='#464646';g.fillRect(0,56,W,H-56);
+  const tt=performance.now()/1000,disk=(x,c,r,glow)=>{g.save();if(glow){g.shadowColor=CLC[c];g.shadowBlur=40;}g.fillStyle=CLC[c];g.beginPath();g.arc(x,330,r,0,7);g.fill();g.restore();};
+  const cap=(t,col,y=140)=>{g.fillStyle=col;g.font='bold 40px monospace';g.textAlign='center';g.fillText(t,W/2,y);g.textAlign='left';};
+  if(s.step==='lesson'){disk(W/2,s.color,150,true);cap(`УРОК: ${CLRU[s.color]}`,'#fff',120);
+    g.font='bold 34px monospace';g.textAlign='center';g.fillStyle=s.kind==='sugar'?'#3dff9a':'#ff5470';g.fillText(s.kind==='sugar'?'+ сахар · дофамин PAM11':'⚡ удар · PPL101',W/2,550);g.textAlign='left';
+    if(s.kind==='shock'&&Math.sin(tt*30)>.3){g.strokeStyle='#ffe25a';g.lineWidth=6;g.beginPath();g.moveTo(W/2-40,190);g.lineTo(W/2+10,300);g.lineTo(W/2-20,300);g.lineTo(W/2+40,450);g.stroke();}}
+  else if(s.step==='exam'||s.step==='choice'){cap(s.phase_exam==='pre'?'ЭКЗАМЕН ДО УРОКОВ':'ЭКЗАМЕН: КУДА ЛЕТЕТЬ?','#fff',120);
+    const o=s.order||['blue','green'];o.forEach((c,i)=>{const x=W/2+(i?1:-1)*220,look=s.step==='exam'&&s.looking===c,ch=s.step==='choice'&&s.choice===c;
+      disk(x,c,look||ch?120:95,look||ch);const p=s.pull?.[c];g.fillStyle='#dfe8ff';g.font='24px monospace';g.textAlign='center';
+      g.fillText(p?`тянет ${p.pull>=0?'+':''}${p.pull.toFixed(2)}`:look?'смотрит…':'',x,500);g.textAlign='left';});
+    if(s.step==='choice'){const ok=s.last?.correct,pre=s.last?.phase==='pre';cap(pre?`выбрала ${CLRU[s.choice]}`:ok?`✓ ${CLRU[s.choice]} — там сахар`:`✗ ${CLRU[s.choice]} — там удар`,pre?'#ffd06a':ok?'#3dff9a':'#ff5470',570);}}
+  else{cap('пауза между пробами','#9fb3e8',330);}
+  if(SCREEN==='crt'){g.globalCompositeOperation='multiply';g.fillStyle='#3cff70';g.fillRect(0,0,W,H);g.globalCompositeOperation='source-over';}
+  scrT.needsUpdate=true;}
+function clCurve(){const c=$('clcurve'),g=c.getContext('2d'),W=c.width,H=c.height,a=CL.exams.filter(e=>e.phase==='train');g.clearRect(0,0,W,H);
+  const Y=v=>H-6-(H-12)*v,n=a.length;g.strokeStyle='#ff7aa8';g.setLineDash([10,8]);g.lineWidth=3;g.beginPath();g.moveTo(6,Y(.5));g.lineTo(W-6,Y(.5));g.stroke();g.setLineDash([]);
+  if(!n)return;const X=i=>6+(W-12)*(n<2?.5:i/(n-1));
+  a.forEach((e,i)=>{if(i&&a[i-1].sweet===e.sweet)return;let j=i;while(j<n&&a[j].sweet===e.sweet)j++;g.fillStyle=e.sweet==='blue'?'rgba(40,90,255,.18)':'rgba(40,210,60,.18)';g.fillRect(X(i),0,X(j-1)-X(i)+2,H);});
+  g.strokeStyle='#ffd06a';g.lineWidth=3;g.beginPath();a.forEach((e,i)=>{const w=a.slice(Math.max(0,i-19),i+1),m=w.filter(x=>x.correct).length/w.length;i?g.lineTo(X(i),Y(m)):g.moveTo(X(i),Y(m));});g.stroke();}
 function crtify(g,W,H){const im=g.getImageData(0,0,W,H),d=im.data;   // зелёный люминофор + строки развёртки
   for(let i=0;i<d.length;i+=4){const l=(d[i]*.3+d[i+1]*.59+d[i+2]*.11)/255,y=(i/4/W)|0,sl=y%4<2?1:.55;d[i]=l*70*sl;d[i+1]=Math.min(255,(40+l*300)*sl);d[i+2]=l*60*sl;}
   g.putImageData(im,0,0);}
@@ -1534,6 +1582,8 @@ function animate(){
           pressKey(18+(Math.random()*6|0),n.side==='BUY'?0x3dff9a:0xff5470);}}}
     }else drawRaster({l:.01,r:.01,gate:0,kc:.01,rew:0,ave:0});}
   tap=Math.max(tap,EXTRA_TAP);
+  if(MODE==='colors'){trading=true;if(frameN%3===0)drawColorsScreen();
+    if(clFx){const k=(now-clFx.t0)/900;if(k<1){const s1=Math.sin(k*Math.PI);if(clFx.kind==='tap')tap=s1;else if(clFx.kind==='reward'){buzz=s1;eyeGlow=.7*s1;}else shiver=.06*s1;}}}
   if(MODE==='flappy'){trading=true;if(frameN%2===0)drawFlappyScreen();
     if(flapFx){const k=(now-flapFx.t0)/700;if(k<1){const s1=Math.sin(k*Math.PI);
       if(flapFx.kind==='flap')tap=s1;else if(flapFx.kind==='reward'){buzz=s1;eyeGlow=.7*s1;}else shiver=.06*s1;}}}
@@ -1572,7 +1622,11 @@ function animate(){
   camera.position.clamp(CAM_MIN,CAM_MAX);
   renderer.render(scene,camera);cpuSum+=performance.now()-now;}
 audioInit();drawScreen(false);animate();
-if(MODE==='flappy'){['stats','season','ticker','hud'].forEach(id=>$(id).style.display='none');
+if(MODE==='colors'){['stats','season','ticker','hud'].forEach(id=>$(id).style.display='none');$('clhud').style.display='block';
+  $('disc').textContent='настоящий коннектом мухи дрозофилы учится выбирать цвет, как живые мухи в опытах · урок: цвет + сахар (PAM11) или удар (PPL101) · экзамен: выбирает её память (MBON11 против MBON07) · эксперимент';
+  colorsPoll();colorsExams();setInterval(colorsPoll,300);setInterval(colorsExams,5000);
+  setInterval(()=>{oraclePoll();},3000);setInterval(dreamPoll,30000);dreamPoll();}
+else if(MODE==='flappy'){['stats','season','ticker','hud'].forEach(id=>$(id).style.display='none');
   $('disc').textContent='настоящий коннектом мухи дрозофилы играет во Flappy Fly · сезон 2: взмах решает её память (MBON11 за, MBON07 против) · удар снизу = дофамин «махать чаще», сверху = «махать реже» · эксперимент';$('flhud').style.display='block';
   flappyPoll();flappyAttempts();setInterval(flappyPoll,250);setInterval(flappyAttempts,5000);
   setInterval(()=>{oraclePoll();},3000);setInterval(dreamPoll,30000);dreamPoll();}

@@ -48,8 +48,22 @@ P
               -d "$(python3 -c 'import json,sys;print(json.dumps({"q":" ".join(sys.argv[1:]),"who":"Игорь"}))' "$@")" \
               | python3 -c 'import json,sys;print(json.load(sys.stdin)["msg"])' || echo "Оракул не запущен." ;;
   check)    shift; .venv/bin/python flappy_check.py "$@" ;;
+  colors)
+    python3 - <<'P'
+import json, pathlib, time
+p = pathlib.Path("runs/colors/state.json")
+if not p.exists(): print("«Муха выбирает цвет» ещё не запускалась (stonkfly apps, затем stonkfly restart)"); raise SystemExit
+s = json.loads(p.read_text()); m = s.get("summary", {}); ru = {"blue": "синий", "green": "зелёный"}
+print(f"экзаменов: {m.get('exams', 0)}, сейчас сладкий: {ru[s['sweet']]}, обновлено {int(time.time() - s['wall'])} с назад")
+if "pre_blue" in m: print(f"вкус до уроков: синий {m['pre_blue']*100:.0f}%")
+if "last_acc" in m:
+    lo, hi = m["last_ci"]; print(f"верно за последние {m['last_n']}: {m['last_acc']*100:.0f}% (95%: {lo*100:.0f}–{hi*100:.0f}%), наугад 50%")
+    for c, v in m.get("by_sweet", {}).items(): print(f"  когда сладкий {ru[c]}: {v*100:.0f}%")
+    if "balanced" in m: print(f"в среднем по обоим цветам: {m['balanced']*100:.0f}%" + ("  → учится!" if m['balanced'] > .6 and lo > .5 else ""))
+P
+    echo "  смотреть: $(URL)&mode=colors" ;;
   dream)    tail -n 3 runs/dreams/status.json 2>/dev/null; echo; ls -t runs/dreams/*.png 2>/dev/null | head -3 ;;
-  apps)     shift; if [ $# -eq 0 ]; then echo "Сейчас: $(cat apps.conf 2>/dev/null || echo 'flappy oracle dreams')"; else echo "$*" > apps.conf; echo "Будут запущены: $*. Примени: stonkfly restart"; fi ;;
+  apps)     shift; if [ $# -eq 0 ]; then echo "Сейчас: $(cat apps.conf 2>/dev/null || echo 'flappy colors oracle dreams')"; else echo "$*" > apps.conf; echo "Будут запущены: $*. Примени: stonkfly restart"; fi ;;
   season)   ./new-season.sh ;;
   update)
     echo "Скачиваю обновления с GitHub…"
@@ -80,6 +94,7 @@ stonkfly — управление мухой
   stonkfly stop      остановить
   stonkfly restart   перезапустить
   stonkfly check     учится ли муха во Flappy Fly (stonkfly check --quick: только счёт)
+  stonkfly colors    как муха учится выбирать цвет
   stonkfly season    закончить сезон и начать новый с \$100
   stonkfly flappy    открыть Flappy Fly
   stonkfly ask ТЕКСТ спросить муху-оракула

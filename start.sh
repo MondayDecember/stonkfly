@@ -7,7 +7,7 @@ if ! tmux has-session -t stonkfly 2>/dev/null; then
   tmux new-window  -t stonkfly -n web   "while true; do python3 -m http.server 8080 --bind 0.0.0.0; echo 'сервер упал, перезапуск'; sleep 5; done"
   tmux new-window  -t stonkfly -n brain "while true; do .venv/bin/python brainmap.py; echo 'карта мозга упала, перезапуск'; sleep 10; done"
   # дополнительные мухи (у каждой свой мозг); выключить: stonkfly apps "oracle dreams" и т.п.
-  APPS="flappy oracle dreams"; [ -f apps.conf ] && APPS="$(cat apps.conf)"
+  APPS="flappy colors oracle dreams"; [ -f apps.conf ] && APPS="$(cat apps.conf)"
   delay=0
   for app in $APPS; do
     [ -f "$app.py" ] || { [ "$app" = flappy ] && [ -f flappyfly.py ]; } || continue
@@ -25,6 +25,7 @@ cat <<T
   3D-сцена:        http://localhost:8080/stonkfly-3d.html
   Flappy Fly:      http://$IP:8080/flappy.html
   Муха-оракул:     http://$IP:8081/
+  Выбор цвета:     http://localhost:8080/stonkfly-3d.html?stream=1&mode=colors
   для OBS/стрима:  http://localhost:8080/stonkfly-3d.html?stream=1
   если localhost не открывается — http://$IP:8080/stonkfly-3d.html?stream=1
 
